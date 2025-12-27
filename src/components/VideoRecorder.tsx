@@ -56,16 +56,34 @@ export function VideoRecorder({ camera, mediaRef }: VideoRecorderProps) {
 
     try {
       // 获取尺寸
-      let width = 640;
-      let height = 480;
+      let width = 0;
+      let height = 0;
 
       if (element instanceof HTMLImageElement) {
-        width = element.naturalWidth || 640;
-        height = element.naturalHeight || 480;
+        width = element.naturalWidth;
+        height = element.naturalHeight;
       } else if (element instanceof HTMLVideoElement) {
-        width = element.videoWidth || 640;
-        height = element.videoHeight || 480;
+        width = element.videoWidth;
+        height = element.videoHeight;
+
+        // 检查视频是否已准备就绪
+        if (element.readyState < 2) { // HAVE_CURRENT_DATA
+          console.warn('[Recording] Video not ready, readyState:', element.readyState);
+          toast.error('视频还未准备好，请稍后再试');
+          setIsPreparing(false);
+          return;
+        }
       }
+
+      // 检查尺寸是否有效
+      if (width === 0 || height === 0) {
+        console.error('[Recording] Invalid dimensions:', { width, height, element });
+        toast.error('无法获取视频尺寸，请确保视频已连接');
+        setIsPreparing(false);
+        return;
+      }
+
+      console.log('[Recording] Starting with dimensions:', { width, height });
 
       const canvas = document.createElement('canvas');
       canvas.width = width;
@@ -145,10 +163,12 @@ export function VideoRecorder({ camera, mediaRef }: VideoRecorderProps) {
       mediaRecorderRef.current = mediaRecorder;
 
       let isActive = true;
+      let frameCount = 0;
       const drawFrame = () => {
         if (canvasRef.current && mediaRef.current && ctx && isActive) {
           try {
             ctx.drawImage(mediaRef.current, 0, 0, canvas.width, canvas.height);
+            frameCount++;
 
             // 绘制时间戳水印
             const now = new Date();
@@ -177,7 +197,7 @@ export function VideoRecorder({ camera, mediaRef }: VideoRecorderProps) {
           } catch (e: any) {
             // Ignore CORS errors, but log once
             if (!hasLoggedErrorRef.current) {
-              console.error('Recording draw error:', e);
+              console.error('[Recording] Draw error:', e, '\nElement:', mediaRef.current);
               toast.error(`录制画面捕获失败: ${e.message || '未知错误'}`);
               hasLoggedErrorRef.current = true;
             }
