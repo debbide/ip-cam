@@ -7,6 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { HardDrive, AlertTriangle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import { Input } from '@/components/ui/input';
 
 export function StorageSettings() {
     const [loading, setLoading] = useState(true);
@@ -101,12 +102,26 @@ export function StorageSettings() {
                     <div className="space-y-4 pt-4">
                         <div className="flex justify-between items-center">
                             <Label>最大存储配额 (GB)</Label>
-                            <span className="font-mono text-sm bg-secondary px-2 py-1 rounded">
-                                {stats.quotaGB} GB
-                            </span>
+                            <div className="flex items-center gap-2">
+                                <Input
+                                    type="number"
+                                    min={1}
+                                    max={10000}
+                                    value={stats.quotaGB}
+                                    onChange={(e) => {
+                                        const val = parseInt(e.target.value) || 1;
+                                        const clampedVal = Math.max(1, Math.min(10000, val));
+                                        setStats(prev => ({ ...prev, quotaGB: clampedVal }));
+                                        setHasChanges(true);
+                                    }}
+                                    disabled={!stats.enabled}
+                                    className="w-24 h-8 text-center font-mono"
+                                />
+                                <span className="text-sm text-muted-foreground">GB</span>
+                            </div>
                         </div>
                         <Slider
-                            value={[stats.quotaGB]}
+                            value={[Math.min(stats.quotaGB, 1000)]}
                             min={1}
                             max={1000}
                             step={1}
@@ -118,7 +133,7 @@ export function StorageSettings() {
                         />
                         <p className="text-xs text-muted-foreground flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" />
-                            建议预留至少 10GB 空间。当使用量达到 90% 时将触发清理。
+                            建议预留至少 10GB 空间。当使用量达到 90% 时将触发清理。输入框支持输入超过 1000GB。
                         </p>
                     </div>
 

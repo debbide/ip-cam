@@ -32,7 +32,10 @@ import {
     FolderOpen,
     Clock,
     HardDrive,
+    CheckSquare,
+    Square,
 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface SavedFile {
     name: string;
@@ -58,6 +61,8 @@ export function VideoPlayback({ onBack }: VideoPlaybackProps) {
     const [selectedFile, setSelectedFile] = useState<SavedFile | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string>('');
     const [deleteTarget, setDeleteTarget] = useState<SavedFile | null>(null);
+    const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+    const [isSelectMode, setIsSelectMode] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
 
     const loadFiles = async () => {
@@ -119,6 +124,58 @@ export function VideoPlayback({ onBack }: VideoPlaybackProps) {
         }
     };
 
+    const handleBatchDelete = async () => {
+        if (!window.electronAPI || selectedFiles.size === 0) return;
+
+        let successCount = 0;
+        let failCount = 0;
+
+        for (const filePath of selectedFiles) {
+            try {
+                const result = await window.electronAPI.deleteFile(filePath);
+                if (result.success) {
+                    successCount++;
+                } else {
+                    failCount++;
+                }
+            } catch {
+                failCount++;
+            }
+        }
+
+        if (successCount > 0) {
+            toast.success(`已删除 ${successCount} 个文件`);
+        }
+        if (failCount > 0) {
+            toast.error(`${failCount} 个文件删除失败`);
+        }
+
+        setSelectedFiles(new Set());
+        setIsSelectMode(false);
+        setDeleteTarget(null);
+        loadFiles();
+    };
+
+    const toggleSelectFile = (path: string) => {
+        setSelectedFiles(prev => {
+            const newSet = new Set(prev);
+            if (newSet.has(path)) {
+                newSet.delete(path);
+            } else {
+                newSet.add(path);
+            }
+            return newSet;
+        });
+    };
+
+    const selectAllInFolder = (items: SavedFile[]) => {
+        setSelectedFiles(new Set(items.map(f => f.path)));
+    };
+
+    const deselectAll = () => {
+        setSelectedFiles(new Set());
+    };
+
     const formatSize = (bytes: number) => {
         if (bytes < 1024) return bytes + ' B';
         if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
@@ -161,12 +218,34 @@ export function VideoPlayback({ onBack }: VideoPlaybackProps) {
                     items.map((file) => (
                         <div
                             key={file.path}
-                            className="group relative bg-card border border-border rounded-lg overflow-hidden hover:border-primary/50 transition-all"
+                            className={`group relative bg-card border rounded-lg overflow-hidden transition-all ${selectedFiles.has(file.path) ? 'border-primary ring-2 ring-primary/30' : 'border-border hover:border-primary/50'}`}
                         >
+                            {/* 选择框 (select mode) */}
+                            {isSelectMode && (
+                                <div
+                                    className="absolute top-2 left-2 z-10"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        toggleSelectFile(file.path);
+                                    }}
+                                >
+                                    <Checkbox
+                                        checked={selectedFiles.has(file.path)}
+                                        className="bg-background border-2"
+                                    />
+                                </div>
+                            )}
+
                             {/* 预览区域 */}
                             <div
                                 className="aspect-video bg-muted flex items-center justify-center cursor-pointer relative overflow-hidden"
-                                onClick={() => handlePreview(file)}
+                                onClick={() => {
+                                    if (isSelectMode) {
+                                        toggleSelectFile(file.path);
+                                    } else {
+                                        handlePreview(file);
+                                    }
+                                }}
                             >
                                 {isVideo(file.name) ? (
                                     // 视频显示播放图标
@@ -247,19 +326,64 @@ export function VideoPlayback({ onBack }: VideoPlaybackProps) {
                     <h1 className="text-lg font-semibold">录像回放</h1>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" className="gap-2" onClick={loadFiles} disabled={loading}>
-                        <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                        刷新
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-2"
-                        onClick={() => window.electronAPI?.openSaveFolder()}
-                    >
-                        <FolderOpen className="w-4 h-4" />
-                        打开文件夹
-                    </Button>
+                    {isSelectMode ? (
+                        <>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-2"
+                                onClick={deselectAll}
+                            >
+                                <Square className="w-4 h-4" />
+                                取消选择
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                size="sm"
+                                className="gap-2"
+                                onClick={() => setDeleteTarget({ path: '__batch__', name: `${selectedFiles.size} 个文件`, size: 0, created: new Date(), modified: new Date(), folder: '' })}
+                                disabled={selectedFiles.size === 0}
+                            >
+                                <Trash2 className="w-4 h-4" />
+                                删除选中 ({selectedFiles.size})
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                    setIsSelectMode(false);
+                                    setSelectedFiles(new Set());
+                                }}
+                            >
+                                取消
+                            </Button>
+                        </>
+                    ) : (
+                        <>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-2"
+                                onClick={() => setIsSelectMode(true)}
+                            >
+                                <CheckSquare className="w-4 h-4" />
+                                批量操作
+                            </Button>
+                            <Button variant="outline" size="sm" className="gap-2" onClick={loadFiles} disabled={loading}>
+                                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                                刷新
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-2"
+                                onClick={() => window.electronAPI?.openSaveFolder()}
+                            >
+                                <FolderOpen className="w-4 h-4" />
+                                打开文件夹
+                            </Button>
+                        </>
+                    )}
                 </div>
             </div>
 
@@ -314,7 +438,7 @@ export function VideoPlayback({ onBack }: VideoPlaybackProps) {
                                     if (target.duration === Infinity) {
                                         // Fix for WebM duration
                                         target.currentTime = 1e101;
-                                        target.ontimeupdate = function () {
+                                        target.ontimeupdate = function (this: HTMLVideoElement) {
                                             this.currentTime = 0;
                                             this.ontimeupdate = null;
                                         };
@@ -338,13 +462,25 @@ export function VideoPlayback({ onBack }: VideoPlaybackProps) {
                     <AlertDialogHeader>
                         <AlertDialogTitle>确认删除</AlertDialogTitle>
                         <AlertDialogDescription>
-                            确定要删除文件 "{deleteTarget?.name}" 吗？此操作无法撤销。
+                            {deleteTarget?.path === '__batch__'
+                                ? `确定要删除选中的 ${selectedFiles.size} 个文件吗？此操作无法撤销。`
+                                : `确定要删除文件 "${deleteTarget?.name}" 吗？此操作无法撤销。`
+                            }
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>取消</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete} className="bg-destructive text-destructive-foreground">
-                            删除
+                        <AlertDialogAction
+                            onClick={() => {
+                                if (deleteTarget?.path === '__batch__') {
+                                    handleBatchDelete();
+                                } else {
+                                    handleDelete();
+                                }
+                            }}
+                            className="bg-destructive text-destructive-foreground"
+                        >
+                            删除{deleteTarget?.path === '__batch__' ? ` (${selectedFiles.size})` : ''}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
