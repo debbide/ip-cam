@@ -1,7 +1,7 @@
 {
   "name": "vite_react_shadcn_ts",
   "private": true,
-  "version": "1.0.18",
+  "version": "1.0.20",
   "type": "module",
   "main": "electron/main.js",
   "scripts": {
@@ -18,7 +18,7 @@
     "appId": "com.ipcam.streamer",
     "productName": "IP Cam Streamer",
     "directories": {
-      "output": "dist_electron"
+      "output": "dist-electron"
     },
     "files": [
       "dist/**/*",
