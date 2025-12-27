@@ -1,7 +1,7 @@
 {
   "name": "vite_react_shadcn_ts",
   "private": true,
-  "version": "1.0.17",
+  "version": "1.0.18",
   "type": "module",
   "main": "electron/main.js",
   "scripts": {
@@ -12,7 +12,7 @@
     "preview": "vite preview",
     "start:electron": "npm run build && electron electron/main.js",
     "build:win": "npm run build && electron-builder --win --x64",
-    "build:portable": "npm run build && electron-builder --win portable"
+    "build:portable": "npm run build && electron-builder --win portable --publish never"
   },
   "build": {
     "appId": "com.ipcam.streamer",
