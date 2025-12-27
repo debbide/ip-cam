@@ -291,7 +291,7 @@ export function FullscreenViewer({ camera, cameras, onClose, onNavigate, onToggl
           <VideoRecorder
             camera={camera}
             mediaRef={mediaRef}
-            directStream={camera.streamType === 'webrtc' ? webrtcRef.current?.getMediaStream() : undefined}
+            getDirectStream={camera.streamType === 'webrtc' ? () => webrtcRef.current?.getMediaStream() : undefined}
           />
 
           <div className="hidden sm:block h-8 w-px bg-border" />

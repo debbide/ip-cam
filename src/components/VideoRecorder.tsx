@@ -9,10 +9,10 @@ import { Circle } from 'lucide-react';
 interface VideoRecorderProps {
   camera: Camera;
   mediaRef: React.RefObject<HTMLImageElement | HTMLVideoElement | null>;
-  directStream?: MediaStream | null; // 用于 WebRTC 直接录制
+  getDirectStream?: () => MediaStream | null | undefined; // 用于 WebRTC 直接录制
 }
 
-export function VideoRecorder({ camera, mediaRef, directStream }: VideoRecorderProps) {
+export function VideoRecorder({ camera, mediaRef, getDirectStream }: VideoRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isPreparing, setIsPreparing] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -54,6 +54,9 @@ export function VideoRecorder({ camera, mediaRef, directStream }: VideoRecorderP
       let usingDirectStream = false;
 
       // 优先使用直接的 MediaStream (WebRTC)
+      const directStream = getDirectStream?.();
+      console.log('[Recording] Checking direct stream:', directStream, 'tracks:', directStream?.getTracks()?.length);
+
       if (directStream && directStream.getTracks().length > 0) {
         console.log('[Recording] Using direct MediaStream from WebRTC');
         recordStream = directStream;
