@@ -360,7 +360,8 @@ console.log(`Static files directory: ${FRONTEND_BUILD_DIR}`);
 app.use(express.static(FRONTEND_BUILD_DIR));
 
 // SPA 路由支持 - 所有未匹配的请求返回 index.html
-app.get('*', (req, res) => {
+// Express 5 requires named parameters for wildcards
+app.get('{*splat}', (req, res) => {
     res.sendFile(path.join(FRONTEND_BUILD_DIR, 'index.html'));
 });
 
