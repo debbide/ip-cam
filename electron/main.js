@@ -11,6 +11,16 @@ import os from 'os';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Fix for portable mode persistence
+// electron-builder portable sets PORTABLE_EXECUTABLE_DIR
+if (process.env.PORTABLE_EXECUTABLE_DIR) {
+    const portableDataPath = path.join(process.env.PORTABLE_EXECUTABLE_DIR, 'data');
+    if (!fs.existsSync(portableDataPath)) {
+        fs.mkdirSync(portableDataPath, { recursive: true });
+    }
+    app.setPath('userData', portableDataPath);
+}
+
 // Setup File Logging
 const LOG_FILE = path.join(app.getPath('userData'), 'app.log');
 const logStream = fs.createWriteStream(LOG_FILE, { flags: 'a' });
