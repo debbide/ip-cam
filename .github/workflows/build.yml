@@ -1,0 +1,50 @@
+name: Build Electron App
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Download MediaMTX
+      run: |
+        New-Item -ItemType Directory -Force -Path bin
+        Invoke-WebRequest -Uri "https://github.com/bluenviron/mediamtx/releases/download/v1.9.3/mediamtx_v1.9.3_windows_amd64.zip" -OutFile "bin\mediamtx.zip"
+        Expand-Archive -Path "bin\mediamtx.zip" -DestinationPath "bin" -Force
+        Remove-Item "bin\mediamtx.zip"
+
+    - name: Download FFmpeg
+      run: |
+        Invoke-WebRequest -Uri "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip" -OutFile "ffmpeg.zip"
+        Expand-Archive -Path "ffmpeg.zip" -DestinationPath "ffmpeg-temp" -Force
+        Copy-Item "ffmpeg-temp\ffmpeg-master-latest-win64-gpl\bin\ffmpeg.exe" -Destination "bin\ffmpeg.exe"
+        Remove-Item "ffmpeg.zip"
+        Remove-Item -Recurse -Force "ffmpeg-temp"
+
+    - name: Install Dependencies
+      run: npm install
+
+    - name: Build Portable App
+      run: npm run build:portable
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: IP-Cam-Streamer-Windows
+        path: dist-electron/*.exe

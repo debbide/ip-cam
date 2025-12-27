@@ -1,0 +1,69 @@
+# 统一容器 - 包含 Nginx + Node.js API + MediaMTX
+# 避免容器间网络通信问题
+
+# ===== 阶段1: 构建前端 =====
+FROM node:20-alpine AS frontend-builder
+
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --legacy-peer-deps
+COPY . .
+RUN npm run build
+
+# ===== 阶段2: 运行环境 =====
+FROM alpine:3.19
+
+# 安装基础依赖
+RUN apk add --no-cache \
+    nginx \
+    nodejs \
+    npm \
+    supervisor \
+    curl \
+    ffmpeg \
+    tzdata
+
+# 设置时区
+ENV TZ=Asia/Shanghai
+
+# ===== 安装 MediaMTX =====
+ARG MEDIAMTX_VERSION=v1.9.3
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then ARCH="amd64"; \
+    elif [ "$ARCH" = "aarch64" ]; then ARCH="arm64v8"; fi && \
+    wget -O /tmp/mediamtx.tar.gz \
+    "https://github.com/bluenviron/mediamtx/releases/download/${MEDIAMTX_VERSION}/mediamtx_${MEDIAMTX_VERSION}_linux_${ARCH}.tar.gz" && \
+    tar -xzf /tmp/mediamtx.tar.gz -C /usr/local/bin mediamtx && \
+    rm /tmp/mediamtx.tar.gz && \
+    chmod +x /usr/local/bin/mediamtx
+
+# ===== 配置 Nginx =====
+COPY nginx.unified.conf /etc/nginx/nginx.conf
+
+# ===== 复制前端构建产物 =====
+COPY --from=frontend-builder /app/dist /usr/share/nginx/html
+
+# ===== 配置 rtsp-server =====
+WORKDIR /app/rtsp-server
+COPY rtsp-server/package.json ./
+RUN npm install --production
+COPY rtsp-server/src ./src
+
+# ===== 配置 MediaMTX =====
+COPY mediamtx.unified.yml /etc/mediamtx.yml
+
+# ===== 创建 HLS 目录 =====
+RUN mkdir -p /var/hls && chmod 777 /var/hls
+
+# ===== 配置 Supervisor =====
+COPY supervisord.conf /etc/supervisord.conf
+
+# ===== 暴露端口 =====
+# 80   - Web UI (Nginx)
+# 8554 - RTSP
+# 8889 - WebRTC (WHEP)
+# 8888 - HLS (MediaMTX)
+EXPOSE 80 8554 8889 8888
+
+# ===== 启动所有服务 =====
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
