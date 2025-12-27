@@ -166,17 +166,28 @@ export function VideoRecorder({ camera, mediaRef, getDirectStream }: VideoRecord
 
       const mimeType = 'video/webm';
 
+      console.log('[Recording] Creating MediaRecorder with stream:', recordStream);
+      console.log('[Recording] Stream tracks:', recordStream.getTracks().map(t => ({ kind: t.kind, enabled: t.enabled, muted: t.muted, readyState: t.readyState })));
+
       const mediaRecorder = new MediaRecorder(recordStream, {
         mimeType,
         videoBitsPerSecond: 2500000,
       });
 
+      console.log('[Recording] MediaRecorder created, state:', mediaRecorder.state);
+
       chunksRef.current = [];
 
       mediaRecorder.ondataavailable = (e) => {
+        console.log('[Recording] Data available, size:', e.data.size);
         if (e.data.size > 0) {
           chunksRef.current.push(e.data);
         }
+      };
+
+      mediaRecorder.onerror = (e: any) => {
+        console.error('[Recording] MediaRecorder error:', e.error || e);
+        toast.error(`录制错误: ${e.error?.message || '未知错误'}`);
       };
 
       mediaRecorder.onstop = async () => {
