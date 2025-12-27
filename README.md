@@ -19,19 +19,25 @@
 
 ---
 
-## 📱 Android 端准备（重要）
+## 📱 移动端准备（重要）
 
-本项目依赖 Android 设备提供视频流，推荐并优先支持以下应用：
+本项目依赖移动设备提供视频流，推荐并优先支持以下应用：
 
-### ✅ 推荐应用
+### 🤖 Android
 
 **IP Camera** (by ShenYao)
 
 - **下载地址**：[Google Play Store](https://play.google.com/store/apps/details?id=com.shenyaocn.android.WebCam&hl=zh)
 
+### 🍎 iOS
+
+**IP摄像头Lite** (by ShenYao)
+
+- **下载地址**：[App Store](https://apps.apple.com/us/app/ip%E6%91%84%E5%83%8F%E5%A4%B4lite/id1013455241?l=zh-Hans-CN)
+
 ### 使用说明
 
-1. 在 Android 手机上安装 **IP Camera**
+1. 在手机上安装对应版本的 **IP Camera** 应用
 2. 确保手机与运行本项目的电脑处于 **同一局域网**
 3. 在应用中启动摄像头服务
 4. 获取应用中提供的 `RTSP` / `MJPEG` / `HTTP` 视频流地址
