@@ -1,7 +1,7 @@
 {
   "name": "vite_react_shadcn_ts",
   "private": true,
-  "version": "1.0.14",
+  "version": "1.0.15",
   "type": "module",
   "main": "electron/main.js",
   "scripts": {
@@ -12,13 +12,13 @@
     "preview": "vite preview",
     "start:electron": "npm run build && electron electron/main.js",
     "build:win": "npm run build && electron-builder --win --x64",
-    "build:portable": "npm run build && electron-builder --win portable --x64 --publish never"
+    "build:portable": "npm run build && electron-builder --win portable"
   },
   "build": {
-    "appId": "com.ipcamstreamer.app",
+    "appId": "com.ipcam.streamer",
     "productName": "IP Cam Streamer",
     "directories": {
-      "output": "dist-electron"
+      "output": "dist_electron"
     },
     "files": [
       "dist/**/*",
@@ -41,7 +41,14 @@
       }
     ],
     "win": {
-      "target": "nsis"
+      "icon": "build/icon.png",
+      "target": [
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
     }
   },
   "dependencies": {
