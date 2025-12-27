@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { useRef, useState, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { Button } from '@/components/ui/button';
 import { Camera } from '@/types/camera';
 import { toast } from 'sonner';
@@ -10,9 +10,15 @@ interface VideoRecorderProps {
   camera: Camera;
   mediaRef: React.RefObject<HTMLImageElement | HTMLVideoElement | null>;
   getDirectStream?: () => MediaStream | null | undefined; // 用于 WebRTC 直接录制
+  className?: string;
 }
 
-export function VideoRecorder({ camera, mediaRef, getDirectStream }: VideoRecorderProps) {
+export interface VideoRecorderRef {
+  start: () => Promise<void>;
+  stop: () => void;
+}
+
+export const VideoRecorder = forwardRef<VideoRecorderRef, VideoRecorderProps>(({ camera, mediaRef, getDirectStream, className }, ref) => {
   const [isRecording, setIsRecording] = useState(false);
   const [isPreparing, setIsPreparing] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -24,6 +30,19 @@ export function VideoRecorder({ camera, mediaRef, getDirectStream }: VideoRecord
   const startTimeRef = useRef<number>(0);
 
   const hasLoggedErrorRef = useRef(false);
+
+  useImperativeHandle(ref, () => ({
+    start: async () => {
+      if (!isRecording && !isPreparing) {
+        await startRecording();
+      }
+    },
+    stop: () => {
+      if (isRecording) {
+        stopRecording();
+      }
+    }
+  }));
 
   useEffect(() => {
     if (!isRecording) {
@@ -273,7 +292,7 @@ export function VideoRecorder({ camera, mediaRef, getDirectStream }: VideoRecord
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className={`flex items-center gap-2 ${className || ''}`}>
       <Button
         variant={isRecording ? 'destructive' : 'secondary'}
         size="sm"
@@ -299,4 +318,6 @@ export function VideoRecorder({ camera, mediaRef, getDirectStream }: VideoRecord
       )}
     </div>
   );
-}
+});
+
+VideoRecorder.displayName = 'VideoRecorder';

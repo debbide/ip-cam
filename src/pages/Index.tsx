@@ -107,26 +107,26 @@ const Index = () => {
         const isStarting = !cam.isRecording;
 
         if (isStarting) {
-          toast({
-            title: '开始录制',
-            description: `${cam.name} 录制已开始`,
-          });
+          // toast({
+          //   title: '开始录制',
+          //   description: `${cam.name} 录制已开始`,
+          // });
           return {
             ...cam,
             isRecording: true,
             recordingStartTime: new Date(),
           };
         } else {
-          const duration = cam.recordingStartTime
-            ? Math.floor((Date.now() - cam.recordingStartTime.getTime()) / 1000)
-            : 0;
-          const mins = Math.floor(duration / 60);
-          const secs = duration % 60;
+          // const duration = cam.recordingStartTime
+          //   ? Math.floor((Date.now() - cam.recordingStartTime.getTime()) / 1000)
+          //   : 0;
+          // const mins = Math.floor(duration / 60);
+          // const secs = duration % 60;
 
-          toast({
-            title: '录制已停止',
-            description: `${cam.name} 录制时长：${mins}分${secs}秒`,
-          });
+          // toast({
+          //   title: '录制已停止',
+          //   description: `${cam.name} 录制时长：${mins}分${secs}秒`,
+          // });
           return {
             ...cam,
             isRecording: false,

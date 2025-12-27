@@ -9,6 +9,7 @@ import { WebrtcPlayer, WebrtcPlayerRef } from '@/components/WebrtcPlayer';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import { VolumeControl } from '@/components/VolumeControl';
 import { RecordingBadge } from '@/components/RecordingControl';
+import { VideoRecorder, VideoRecorderRef } from '@/components/VideoRecorder';
 import { useHumanDetector } from '@/hooks/useHumanDetector';
 import { saveScreenshot } from '@/utils/fileSaver';
 import { toast } from 'sonner';
@@ -106,6 +107,17 @@ export function CameraCard({ camera, isSelected, onSelect, onFullscreen, onToggl
       humanDetector.stopDetection();
     }
   }, [camera.humanDetectionEnabled, camera.status, camera.streamType, camera.name]);
+
+  // 录像控制
+  const recorderRef = useRef<VideoRecorderRef>(null);
+
+  useEffect(() => {
+    if (camera.isRecording) {
+      recorderRef.current?.start();
+    } else {
+      recorderRef.current?.stop();
+    }
+  }, [camera.isRecording]);
 
   const statusColors = {
     online: 'bg-success glow-success',
@@ -209,6 +221,15 @@ export function CameraCard({ camera, isSelected, onSelect, onFullscreen, onToggl
       <div className="relative aspect-video overflow-hidden">
         {renderPlayer()}
 
+        {/* Hidden VideoRecorder for actual recording logic */}
+        <VideoRecorder
+          ref={recorderRef}
+          camera={camera}
+          mediaRef={videoRef}
+          getDirectStream={() => camera.streamType === 'webrtc' ? webrtcRef.current?.getMediaStream() : undefined}
+          className="hidden"
+        />
+
         {/* Status Indicator */}
         <div className="absolute top-2 left-2 z-10 flex items-center gap-2">
           <div className={`w-2 h-2 rounded-full ${statusColors[camera.status]}`} />
@@ -236,7 +257,7 @@ export function CameraCard({ camera, isSelected, onSelect, onFullscreen, onToggl
 
         {/* Recording Badge */}
         {camera.isRecording && (
-          <div className="absolute top-2 right-12 z-10">
+          <div className="absolute bottom-2 right-2 z-10">
             <div onClick={handleRecordingClick}>
               <RecordingBadge
                 isRecording={camera.isRecording}
