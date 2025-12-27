@@ -1,5 +1,6 @@
 import { Camera } from '@/types/camera';
 import { toast } from 'sonner';
+import storage from '@/utils/storage';
 
 const CONFIG_VERSION = '1.0';
 const CAMERAS_STORAGE_KEY = 'nvr_cameras_config';
@@ -41,19 +42,19 @@ export function exportConfig(cameras: Camera[]) {
 export function importConfig(file: File): Promise<Camera[]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    
+
     reader.onload = (e) => {
       try {
         const content = e.target?.result as string;
         const config: ConfigData = JSON.parse(content);
-        
+
         // 验证配置格式
         if (!config.cameras || !Array.isArray(config.cameras)) {
           throw new Error('无效的配置文件格式');
         }
 
         // 验证每个摄像头的必要字段
-        const validCameras = config.cameras.filter(cam => 
+        const validCameras = config.cameras.filter(cam =>
           cam.id && cam.name && cam.ipAddress
         ).map(cam => ({
           ...cam,
@@ -95,13 +96,13 @@ export function saveConfigToStorage(cameras: Camera[]) {
       recordingStartTime: undefined,
     })),
   };
-  localStorage.setItem(CAMERAS_STORAGE_KEY, JSON.stringify(config));
+  storage.setItem(CAMERAS_STORAGE_KEY, JSON.stringify(config));
 }
 
 // 从本地存储加载配置
 export function loadConfigFromStorage(): Camera[] | null {
   try {
-    const stored = localStorage.getItem(CAMERAS_STORAGE_KEY);
+    const stored = storage.getItem(CAMERAS_STORAGE_KEY);
     if (!stored) return null;
 
     const config: ConfigData = JSON.parse(stored);

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import storage, { initStorage } from '@/utils/storage';
 
 export interface User {
   username: string;
@@ -34,7 +35,7 @@ const REMEMBER_DURATION = 30 * 24 * 60 * 60 * 1000; // 30 days
 // 强密码验证：至少8位，包含大小写字母、数字和特殊字符
 export function validatePassword(password: string): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
-  
+
   if (password.length < 8) {
     errors.push('密码长度至少8位');
   }
@@ -50,7 +51,7 @@ export function validatePassword(password: string): { valid: boolean; errors: st
   if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
     errors.push('需要包含特殊字符 (!@#$%^&*...)');
   }
-  
+
   return { valid: errors.length === 0, errors };
 }
 
@@ -69,44 +70,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
 
   useEffect(() => {
-    // 检查是否有用户
-    const users = localStorage.getItem(USERS_KEY);
-    setHasUsers(!!users && JSON.parse(users).length > 0);
-    
-    // 检查登录状态和过期时间
-    const auth = localStorage.getItem(AUTH_KEY);
-    const expiry = localStorage.getItem(AUTH_EXPIRY_KEY);
-    const savedUser = localStorage.getItem(CURRENT_USER_KEY);
-    
-    if (auth === 'true' && savedUser && expiry) {
-      const expiryTime = parseInt(expiry, 10);
-      if (Date.now() < expiryTime) {
-        setIsAuthenticated(true);
-        setCurrentUser(JSON.parse(savedUser));
-      } else {
-        // 已过期，清除登录状态
-        localStorage.removeItem(AUTH_KEY);
-        localStorage.removeItem(AUTH_EXPIRY_KEY);
-        localStorage.removeItem(CURRENT_USER_KEY);
+    // Initialize storage (loads from file in Electron)
+    const init = async () => {
+      await initStorage();
+
+      // 检查是否有用户
+      const users = storage.getItem(USERS_KEY);
+      setHasUsers(!!users && JSON.parse(users).length > 0);
+
+      // 检查登录状态和过期时间
+      const auth = storage.getItem(AUTH_KEY);
+      const expiry = storage.getItem(AUTH_EXPIRY_KEY);
+      const savedUser = storage.getItem(CURRENT_USER_KEY);
+
+      if (auth === 'true' && savedUser && expiry) {
+        const expiryTime = parseInt(expiry, 10);
+        if (Date.now() < expiryTime) {
+          setIsAuthenticated(true);
+          setCurrentUser(JSON.parse(savedUser));
+        } else {
+          // 已过期，清除登录状态
+          storage.removeItem(AUTH_KEY);
+          storage.removeItem(AUTH_EXPIRY_KEY);
+          storage.removeItem(CURRENT_USER_KEY);
+        }
       }
-    }
+    };
+    init();
   }, []);
 
   const loginAsync = async (username: string, password: string, rememberMe = false): Promise<boolean> => {
-    const usersStr = localStorage.getItem(USERS_KEY);
+    const usersStr = storage.getItem(USERS_KEY);
     if (!usersStr) return false;
-    
+
     const users: User[] = JSON.parse(usersStr);
     const hash = await hashPassword(password);
     const user = users.find(u => u.username === username && u.passwordHash === hash);
-    
+
     if (user) {
       const duration = rememberMe ? REMEMBER_DURATION : SESSION_DURATION;
       const expiryTime = Date.now() + duration;
-      
-      localStorage.setItem(AUTH_KEY, 'true');
-      localStorage.setItem(AUTH_EXPIRY_KEY, expiryTime.toString());
-      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
+
+      storage.setItem(AUTH_KEY, 'true');
+      storage.setItem(AUTH_EXPIRY_KEY, expiryTime.toString());
+      storage.setItem(CURRENT_USER_KEY, JSON.stringify(user));
       setIsAuthenticated(true);
       setCurrentUser(user);
       return true;
@@ -115,9 +122,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    localStorage.removeItem(AUTH_KEY);
-    localStorage.removeItem(AUTH_EXPIRY_KEY);
-    localStorage.removeItem(CURRENT_USER_KEY);
+    storage.removeItem(AUTH_KEY);
+    storage.removeItem(AUTH_EXPIRY_KEY);
+    storage.removeItem(CURRENT_USER_KEY);
     setIsAuthenticated(false);
     setCurrentUser(null);
   };
@@ -128,9 +135,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { success: false, error: validation.errors.join('\n') };
     }
 
-    const usersStr = localStorage.getItem(USERS_KEY);
+    const usersStr = storage.getItem(USERS_KEY);
     const users: User[] = usersStr ? JSON.parse(usersStr) : [];
-    
+
     if (users.some(u => u.username === username)) {
       return { success: false, error: '用户名已存在' };
     }
@@ -140,16 +147,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // 异步保存
     hashPassword(password).then(hash => {
-      const newUser: User = { 
-        username, 
-        passwordHash: hash, 
+      const newUser: User = {
+        username,
+        passwordHash: hash,
         isAdmin: shouldBeAdmin,
         createdAt: new Date().toISOString()
       };
       users.push(newUser);
-      localStorage.setItem(USERS_KEY, JSON.stringify(users));
-      localStorage.setItem(AUTH_KEY, 'true');
-      localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(newUser));
+      storage.setItem(USERS_KEY, JSON.stringify(users));
+      storage.setItem(AUTH_KEY, 'true');
+      storage.setItem(CURRENT_USER_KEY, JSON.stringify(newUser));
       setHasUsers(true);
       setIsAuthenticated(true);
       setCurrentUser(newUser);
@@ -159,7 +166,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const getUsers = (): User[] => {
-    const usersStr = localStorage.getItem(USERS_KEY);
+    const usersStr = storage.getItem(USERS_KEY);
     return usersStr ? JSON.parse(usersStr) : [];
   };
 
@@ -173,30 +180,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { success: false, error: validation.errors.join('\n') };
     }
 
-    const usersStr = localStorage.getItem(USERS_KEY);
+    const usersStr = storage.getItem(USERS_KEY);
     const users: User[] = usersStr ? JSON.parse(usersStr) : [];
-    
+
     if (users.some(u => u.username === username)) {
       return { success: false, error: '用户名已存在' };
     }
 
     const hash = await hashPassword(password);
-    const newUser: User = { 
-      username, 
-      passwordHash: hash, 
+    const newUser: User = {
+      username,
+      passwordHash: hash,
       isAdmin,
       createdAt: new Date().toISOString()
     };
     users.push(newUser);
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
+    storage.setItem(USERS_KEY, JSON.stringify(users));
 
     return { success: true };
   };
 
   const deleteUser = (username: string): { success: boolean; error?: string } => {
-    const usersStr = localStorage.getItem(USERS_KEY);
+    const usersStr = storage.getItem(USERS_KEY);
     const users: User[] = usersStr ? JSON.parse(usersStr) : [];
-    
+
     // 不能删除当前用户
     if (currentUser?.username === username) {
       return { success: false, error: '不能删除当前登录用户' };
@@ -210,7 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const newUsers = users.filter(u => u.username !== username);
-    localStorage.setItem(USERS_KEY, JSON.stringify(newUsers));
+    storage.setItem(USERS_KEY, JSON.stringify(newUsers));
 
     return { success: true };
   };
@@ -233,32 +240,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     // 更新密码
-    const usersStr = localStorage.getItem(USERS_KEY);
+    const usersStr = storage.getItem(USERS_KEY);
     const users: User[] = usersStr ? JSON.parse(usersStr) : [];
     const newHash = await hashPassword(newPassword);
-    
-    const updatedUsers = users.map(u => 
-      u.username === currentUser.username 
+
+    const updatedUsers = users.map(u =>
+      u.username === currentUser.username
         ? { ...u, passwordHash: newHash }
         : u
     );
-    
-    localStorage.setItem(USERS_KEY, JSON.stringify(updatedUsers));
-    
+
+    storage.setItem(USERS_KEY, JSON.stringify(updatedUsers));
+
     // 更新当前用户
     const updatedCurrentUser = { ...currentUser, passwordHash: newHash };
-    localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(updatedCurrentUser));
+    storage.setItem(CURRENT_USER_KEY, JSON.stringify(updatedCurrentUser));
     setCurrentUser(updatedCurrentUser);
 
     return { success: true };
   };
 
   return (
-    <AuthContext.Provider value={{ 
-      isAuthenticated, 
+    <AuthContext.Provider value={{
+      isAuthenticated,
       currentUser,
       login: (u, p, r) => { loginAsync(u, p, r); return true; },
-      logout, 
+      logout,
       register,
       hasUsers,
       getUsers,

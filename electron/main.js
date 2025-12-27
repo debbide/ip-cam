@@ -111,6 +111,50 @@ function saveConfig(config) {
     }
 }
 
+// ===== Persistent Store for Frontend Data =====
+// This replaces localStorage for portable mode persistence
+const STORE_PATH = path.join(app.getPath('userData'), 'store.json');
+
+function loadStore() {
+    try {
+        if (fs.existsSync(STORE_PATH)) {
+            return JSON.parse(fs.readFileSync(STORE_PATH, 'utf-8'));
+        }
+    } catch (e) {
+        console.error('Failed to load store:', e);
+    }
+    return {};
+}
+
+function saveStore(store) {
+    try {
+        fs.writeFileSync(STORE_PATH, JSON.stringify(store, null, 2));
+    } catch (e) {
+        console.error('Failed to save store:', e);
+    }
+}
+
+// IPC handlers for store
+ipcMain.handle('store-get', (event, key) => {
+    const store = loadStore();
+    return store[key] ?? null;
+});
+
+ipcMain.handle('store-set', (event, key, value) => {
+    const store = loadStore();
+    store[key] = value;
+    saveStore(store);
+    return true;
+});
+
+ipcMain.handle('store-remove', (event, key) => {
+    const store = loadStore();
+    delete store[key];
+    saveStore(store);
+    return true;
+});
+
+
 // 确保保存目录存在
 function ensureSaveDirectory() {
     const config = loadConfig();

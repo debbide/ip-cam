@@ -47,4 +47,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
     // 获取应用日志
     getAppLogs: () => ipcRenderer.invoke('get-app-logs'),
+
+    // ===== Persistent Store (replaces localStorage for portable mode) =====
+    storeGet: (key) => ipcRenderer.invoke('store-get', key),
+    storeSet: (key, value) => ipcRenderer.invoke('store-set', key, value),
+    storeRemove: (key) => ipcRenderer.invoke('store-remove', key),
 });
