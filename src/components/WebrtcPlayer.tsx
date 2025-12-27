@@ -12,6 +12,7 @@ interface WebrtcPlayerProps {
 
 export interface WebrtcPlayerRef {
     getVideoElement: () => HTMLVideoElement | null;
+    getMediaStream: () => MediaStream | null;
     setVolume: (volume: number) => void;
     setMuted: (muted: boolean) => void;
     isMuted: () => boolean;
@@ -54,6 +55,7 @@ export const WebrtcPlayer = forwardRef<WebrtcPlayerRef, WebrtcPlayerProps>(({ ur
 
     useImperativeHandle(ref, () => ({
         getVideoElement: () => videoRef.current,
+        getMediaStream: () => streamRef.current,
         setVolume: (vol: number) => {
             const clampedVol = Math.max(0, Math.min(1, vol));
             setVolume(clampedVol);
