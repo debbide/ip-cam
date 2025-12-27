@@ -51,50 +51,43 @@ export function VideoRecorder({ camera, mediaRef, getDirectStream }: VideoRecord
 
     try {
       let recordStream: MediaStream | null = null;
-      let usingDirectStream = false;
 
-      // 优先使用直接的 MediaStream (WebRTC)
-      const directStream = getDirectStream?.();
-      console.log('[Recording] Checking direct stream:', directStream, 'tracks:', directStream?.getTracks()?.length);
+      const element = mediaRef.current;
 
-      if (directStream && directStream.getTracks().length > 0) {
-        console.log('[Recording] Using direct MediaStream from WebRTC');
-        recordStream = directStream;
-        usingDirectStream = true;
-        streamRef.current = directStream;
-      } else {
-        // 回退到 canvas 捕获方式
-        const element = mediaRef.current;
-        if (!element) {
-          toast.error('无法获取视频源');
+      // 对于视频元素，使用 captureStream 直接捕获 (包括 WebRTC)
+      if (element instanceof HTMLVideoElement) {
+        // 检查视频是否准备就绪
+        if (element.readyState < 2) {
+          toast.error('视频还未准备好，请稍后再试');
           setIsPreparing(false);
           return;
         }
 
-        // 获取尺寸
-        let width = 0;
-        let height = 0;
-
-        if (element instanceof HTMLImageElement) {
-          width = element.naturalWidth;
-          height = element.naturalHeight;
-        } else if (element instanceof HTMLVideoElement) {
-          width = element.videoWidth;
-          height = element.videoHeight;
-
-          // 检查视频是否已准备就绪
-          if (element.readyState < 2) { // HAVE_CURRENT_DATA
-            console.warn('[Recording] Video not ready, readyState:', element.readyState);
-            toast.error('视频还未准备好，请稍后再试');
-            setIsPreparing(false);
-            return;
-          }
+        if (element.videoWidth === 0 || element.videoHeight === 0) {
+          toast.error('无法获取视频尺寸，请确保视频已连接');
+          setIsPreparing(false);
+          return;
         }
+
+        // 使用 captureStream 直接从 video 元素捕获
+        // 这种方式对 WebRTC 和其他视频源都有效
+        const videoWithCapture = element as HTMLVideoElement & { captureStream?: (frameRate?: number) => MediaStream };
+        if (videoWithCapture.captureStream) {
+          recordStream = videoWithCapture.captureStream(30);
+          streamRef.current = recordStream;
+        } else {
+          toast.error('浏览器不支持视频捕获');
+          setIsPreparing(false);
+          return;
+        }
+      } else if (element instanceof HTMLImageElement) {
+        // 使用 canvas 捕获方式处理图片 (MJPEG)
+        const width = element.naturalWidth;
+        const height = element.naturalHeight;
 
         // 检查尺寸是否有效
         if (width === 0 || height === 0) {
-          console.error('[Recording] Invalid dimensions:', { width, height, element });
-          toast.error('无法获取视频尺寸，请确保视频已连接');
+          toast.error('无法获取图片尺寸，请确保图片已加载');
           setIsPreparing(false);
           return;
         }
