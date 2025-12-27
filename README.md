@@ -20,39 +20,20 @@
 
 ---
 
-## 🐳 Docker 部署（推荐）
+## 📱 Android 端准备
 
-### 方式一：Docker Compose（推荐）
+推荐使用 **IP Camera** 应用将手机变成网络摄像头：
+- **下载地址**：[Google Play Store](https://play.google.com/store/apps/details?id=com.shenyaocn.android.WebCam&hl=zh)
+- 或者使用同类型的其他支持 RTSP/MJPEG/ONVIF 的应用自行测试。
 
-```bash
-# 克隆项目
-git clone <YOUR_GIT_URL>
-cd android-ip-cam-streamer
+---
 
-# 启动服务（默认端口 3000）
-docker-compose up -d
+## 🖥️ Windows 部署（推荐）
 
-# 自定义端口
-WEB_PORT=8080 docker-compose up -d
+本项目目前**不支持 Docker 部署**，请直接使用 Windows 可执行文件。
 
-# 停止服务
-docker-compose down
-```
-
-### 方式二：手动 Docker 构建
-
-```bash
-# 构建镜像
-docker build -t ip-cam-streamer .
-
-# 运行容器
-docker run -d -p 3000:80 --name ip-cam-streamer ip-cam-streamer
-
-# 停止容器
-docker stop ip-cam-streamer && docker rm ip-cam-streamer
-```
-
-访问 `http://localhost:3000` 即可使用。
+1. 在 Releases 页面下载最新的 `IP.Cam.Streamer.x.x.x.exe`
+2. 双击运行即可（支持便携模式，数据存储在同级目录下）
 
 ---
 
