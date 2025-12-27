@@ -346,6 +346,7 @@ export const WebrtcPlayer = forwardRef<WebrtcPlayerRef, WebrtcPlayerProps>(({ ur
                 autoPlay
                 playsInline
                 controls={false}
+                crossOrigin="anonymous"
             />
 
             {/* Loading State */}

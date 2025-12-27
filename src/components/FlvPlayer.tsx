@@ -118,6 +118,7 @@ export const FlvPlayer = forwardRef<FlvPlayerRef, FlvPlayerProps>(({ url, isOnli
                 muted
                 autoPlay
                 playsInline
+                crossOrigin="anonymous"
             />
 
             {/* Loading State */}

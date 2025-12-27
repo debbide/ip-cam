@@ -130,6 +130,7 @@ export const HlsPlayer = forwardRef<HlsPlayerRef, HlsPlayerProps>(({ url, isOnli
                 muted
                 autoPlay
                 playsInline
+                crossOrigin="anonymous"
             />
 
             {/* Loading State */}

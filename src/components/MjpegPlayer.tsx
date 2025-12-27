@@ -71,6 +71,7 @@ export const MjpegPlayer = forwardRef<MjpegPlayerRef, MjpegPlayerProps>(({ url, 
           style={{ transform: `rotate(${rotation}deg)` }}
           onLoad={handleLoad}
           onError={handleError}
+          crossOrigin="anonymous"
         />
       )}
 
