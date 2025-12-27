@@ -1,4 +1,4 @@
-# Android IP Cam Streamer
+# IP Cam Streamer
 
 一个用于 **集中监控多个 Android 设备摄像头** 的 Web 应用，适合在局域网环境中进行实时视频查看与管理。
 
