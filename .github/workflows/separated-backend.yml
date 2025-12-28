@@ -62,7 +62,9 @@ jobs:
           cd ip-cam-separated/backend
           docker build -t ip-cam-backend:${{ needs.check-version.outputs.version }} .
           docker save ip-cam-backend:${{ needs.check-version.outputs.version }} | gzip > ip-cam-backend-${{ needs.check-version.outputs.version }}.tar.gz
-          ls -lh
+          mv ip-cam-backend-${{ needs.check-version.outputs.version }}.tar.gz ../../
+          cd ../..
+          ls -lh ip-cam-backend-*.tar.gz
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -78,7 +80,7 @@ jobs:
             docker load < ip-cam-backend-${{ needs.check-version.outputs.version }}.tar.gz
             ```
           files: |
-            ip-cam-separated/backend/ip-cam-backend-*.tar.gz
+            ip-cam-backend-*.tar.gz
           draft: false
           prerelease: false
           append_body: true
