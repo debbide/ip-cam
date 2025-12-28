@@ -194,6 +194,7 @@ export function VideoRecorder({ camera, mediaRef }: VideoRecorderProps) {
       drawFrame();
 
       toast.success('开始录制');
+
     } catch (error) {
       console.error('录制启动失败:', error);
       toast.error('录制启动失败');

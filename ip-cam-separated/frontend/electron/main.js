@@ -9,8 +9,17 @@ const __dirname = path.dirname(__filename);
 
 let mainWindow;
 
+// 允许自动播放音频
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
+
 // 判断是否为开发环境
-const isDev = !app.isPackaged;
+const isDev = process.env.NODE_ENV === 'development';
+console.log('=================================');
+console.log('Environment Debug Info:');
+console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('isDev:', isDev);
+console.log('app.isPackaged:', app.isPackaged);
+console.log('=================================');
 
 // 配置文件路径
 const CONFIG_PATH = path.join(app.getPath('userData'), 'config.json');
@@ -440,10 +449,17 @@ function createWindow() {
 
     // 开发模式加载 Vite 开发服务器，生产模式加载本地文件
     if (isDev) {
-        mainWindow.loadURL('http://localhost:8080');
-        // mainWindow.webContents.openDevTools();
+        console.log('Loading from dev server: http://localhost:8080');
+        mainWindow.loadURL('http://localhost:8080').catch(e => {
+            console.error('Failed to load dev server, falling back to local file:', e);
+            mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+        });
+        mainWindow.webContents.openDevTools();
     } else {
+        console.log('Loading from local file:', path.join(__dirname, '../dist/index.html'));
         mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
+        // 开启 DevTools 以便调试白屏问题
+        mainWindow.webContents.openDevTools();
     }
 
     mainWindow.on('closed', function () {

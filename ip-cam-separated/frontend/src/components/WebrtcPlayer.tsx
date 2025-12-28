@@ -8,6 +8,7 @@ interface WebrtcPlayerProps {
     className?: string;
     isFullscreen?: boolean;
     rotation?: number;
+    initialMuted?: boolean;
 }
 
 export interface WebrtcPlayerRef {
@@ -18,12 +19,12 @@ export interface WebrtcPlayerRef {
     getVolume: () => number;
 }
 
-export const WebrtcPlayer = forwardRef<WebrtcPlayerRef, WebrtcPlayerProps>(({ url, isOnline, className = '', isFullscreen = false, rotation = 0 }, ref) => {
+export const WebrtcPlayer = forwardRef<WebrtcPlayerRef, WebrtcPlayerProps>(({ url, isOnline, className = '', isFullscreen = false, rotation = 0, initialMuted = true }, ref) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const pcRef = useRef<RTCPeerConnection | null>(null);
     const streamRef = useRef<MediaStream | null>(null); // 保存 MediaStream 引用
     const [status, setStatus] = useState<'loading' | 'connected' | 'error'>('loading');
-    const [isMuted, setIsMuted] = useState(true); // 默认静音以支持自动播放
+    const [isMuted, setIsMuted] = useState(initialMuted); // 使用 initialMuted 初始化
     const [retryCount, setRetryCount] = useState(0);
     const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
     const retryCountRef = useRef(0); // 用于闭包中获取最新值
@@ -41,12 +42,35 @@ export const WebrtcPlayer = forwardRef<WebrtcPlayerRef, WebrtcPlayerProps>(({ ur
         retryCountRef.current = retryCount;
     }, [retryCount]);
 
+    // 监听视频元素状态
+    useEffect(() => {
+        const video = videoRef.current;
+        if (!video) return;
+
+        const handlePause = () => console.log('[WebRTC] Video paused');
+        const handlePlay = () => console.log('[WebRTC] Video playing');
+        const handleSuspend = () => console.log('[WebRTC] Video suspended');
+        const handleStalled = () => console.log('[WebRTC] Video stalled');
+
+        video.addEventListener('pause', handlePause);
+        video.addEventListener('play', handlePlay);
+        video.addEventListener('suspend', handleSuspend);
+        video.addEventListener('stalled', handleStalled);
+
+        return () => {
+            video.removeEventListener('pause', handlePause);
+            video.removeEventListener('play', handlePlay);
+            video.removeEventListener('suspend', handleSuspend);
+            video.removeEventListener('stalled', handleStalled);
+        };
+    }, []);
+
     // 同步 muted 状态到 video 元素
     useEffect(() => {
         if (videoRef.current) {
+            console.log(`[WebRTC] Syncing muted state: ${isMuted}`);
             videoRef.current.muted = isMuted;
             videoRef.current.volume = 1.0;
-
         }
     }, [isMuted]);
 
@@ -142,19 +166,34 @@ export const WebrtcPlayer = forwardRef<WebrtcPlayerRef, WebrtcPlayerProps>(({ ur
                 pc.addTransceiver('audio', { direction: 'recvonly' });
 
                 pc.ontrack = (event) => {
+                    console.log(`[WebRTC] Received track: ${event.track.kind}, id: ${event.track.id}, label: ${event.track.label}, enabled: ${event.track.enabled}, muted: ${event.track.muted}`);
 
+                    if (videoRef.current) {
+                        console.log(`[WebRTC] Video element state - muted: ${videoRef.current.muted}, volume: ${videoRef.current.volume}, paused: ${videoRef.current.paused}`);
+                    }
 
-                    // 创建或获取 MediaStream
+                    // 监听轨道静音状态变化
+                    event.track.onmute = () => {
+                        console.log(`[WebRTC] Track muted: ${event.track.kind}`);
+                    };
+                    event.track.onunmute = () => {
+                        console.log(`[WebRTC] Track unmuted: ${event.track.kind}`);
+                    };
+                    // 回滚：始终手动构建流，确保兼容性
                     if (!streamRef.current) {
                         streamRef.current = new MediaStream();
                     }
-
-                    // 添加轨道到流
                     streamRef.current.addTrack(event.track);
 
-                    // 设置到视频元素
-                    if (videoRef.current && videoRef.current.srcObject !== streamRef.current) {
-                        videoRef.current.srcObject = streamRef.current;
+                    // 强制刷新 video.srcObject
+                    if (videoRef.current) {
+                        console.log(`[WebRTC] refreshing video srcObject for track: ${event.track.kind}`);
+                        // 创建新的 MediaStream 对象以触发 React/DOM 更新
+                        const newStream = new MediaStream(streamRef.current.getTracks());
+                        videoRef.current.srcObject = newStream;
+
+                        // 尝试播放
+                        videoRef.current.play().catch(e => console.error('[WebRTC] Play error:', e));
                     }
 
                     setStatus('connected');
@@ -200,21 +239,17 @@ export const WebrtcPlayer = forwardRef<WebrtcPlayerRef, WebrtcPlayerProps>(({ ur
                 setDebugInfo(prev => ({ ...prev, step: 'processing_answer' }));
                 let answer = await response.text();
 
-                // SDP Rewrite: 只在 Docker 环境下重写（非 Electron 桌面应用）
-                // Electron 桌面应用不需要重写，因为 MediaMTX 在本地运行
-                const isElectron = navigator.userAgent.includes('Electron');
-                if (!isElectron) {
-                    const currentHost = window.location.hostname === 'localhost' ? '127.0.0.1' : window.location.hostname;
-                    answer = answer.replace(/(a=candidate:\S+ \d+ \w+ \d+ )(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})( \d+ typ)/g, (match, prefix, ip, suffix) => {
-                        // 只替换 Docker 内部 IP (172.x.x.x)
-                        if (ip.startsWith('172.')) {
-                            return `${prefix}${currentHost}${suffix}`;
-                        }
-                        return match;
-                    });
-                } else {
-                    // console.log('[WebRTC] Electron 环境，跳过 SDP 重写');
-                }
+                // SDP Rewrite: 始终重写 Docker 内部 IP (172.x.x.x) 到实际连接的主机
+                // 无论是浏览器还是 Electron，连接 Docker 容器都需要这个重写
+                const whepUrlObj = new URL(whepUrl);
+                const targetHost = whepUrlObj.hostname === 'localhost' ? '127.0.0.1' : whepUrlObj.hostname;
+                answer = answer.replace(/(a=candidate:\S+ \d+ \w+ \d+ )(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})( \d+ typ)/g, (match, prefix, ip, suffix) => {
+                    // 只替换 Docker 内部 IP (172.x.x.x, 10.x.x.x)
+                    if (ip.startsWith('172.') || ip.startsWith('10.')) {
+                        return `${prefix}${targetHost}${suffix}`;
+                    }
+                    return match;
+                });
 
                 await pc.setRemoteDescription({
                     type: 'answer',
@@ -298,12 +333,21 @@ export const WebrtcPlayer = forwardRef<WebrtcPlayerRef, WebrtcPlayerProps>(({ ur
             try {
                 const report = await pcRef.current.getStats();
                 let videoStats: any = null;
+                let audioStats: any = null;
 
                 report.forEach(stat => {
-                    if (stat.type === 'inbound-rtp' && stat.kind === 'video') {
-                        videoStats = stat;
+                    if (stat.type === 'inbound-rtp') {
+                        console.log(`[WebRTC] Inbound RTP (${stat.kind}):`, stat);
+                        if (stat.kind === 'video') videoStats = stat;
+                        if (stat.kind === 'audio') audioStats = stat;
                     }
                 });
+
+                if (audioStats) {
+                    console.log(`[WebRTC] Audio stats: bytesReceived=${audioStats.bytesReceived}, packetsReceived=${audioStats.packetsReceived}, codecId=${audioStats.codecId}`);
+                } else {
+                    console.log('[WebRTC] No audio stats found in report');
+                }
 
                 if (videoStats) {
                     const now = videoStats.timestamp;
@@ -342,10 +386,22 @@ export const WebrtcPlayer = forwardRef<WebrtcPlayerRef, WebrtcPlayerProps>(({ ur
                 ref={videoRef}
                 className={`w-full h-full object-cover transition-transform duration-300 ${status === 'connected' ? '' : 'invisible'}`}
                 style={{ transform: `rotate(${rotation}deg)` }}
-                muted={isMuted}
+                muted={true} // 强制静音以确保自动播放
                 autoPlay
                 playsInline
-                controls={false}
+                onLoadedMetadata={(e) => {
+                    console.log('[WebRTC] Video metadata loaded, attempting to play');
+                    const video = e.currentTarget;
+                    video.play()
+                        .then(() => {
+                            console.log('[WebRTC] Playback started');
+                            // 如果状态要求非静音，则在播放成功后取消静音
+                            if (!isMuted) {
+                                video.muted = false;
+                            }
+                        })
+                        .catch(err => console.error('[WebRTC] Play failed on metadata load:', err));
+                }}
             />
 
             {/* Loading State */}
