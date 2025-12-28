@@ -1,0 +1,75 @@
+# MediaMTX 配置 - 后端服务专用
+
+###############################################
+# 通用设置
+###############################################
+
+logLevel: info
+logDestinations: [stdout]
+
+###############################################
+# API 设置
+###############################################
+
+api: yes
+apiAddress: :9997
+
+###############################################
+# RTSP 设置
+###############################################
+
+rtspAddress: :8554
+protocols: [tcp, udp]
+
+###############################################
+# HLS 设置
+###############################################
+
+hlsAddress: :8888
+hlsAlwaysRemux: no
+hlsVariant: mpegts
+hlsSegmentCount: 3
+hlsSegmentDuration: 1s
+hlsPartDuration: 200ms
+hlsSegmentMaxSize: 50M
+hlsAllowOrigin: '*'
+
+###############################################
+# WebRTC 设置
+###############################################
+
+webrtcAddress: :8989
+webrtcLocalUDPAddress: :8289
+webrtcIPsFromInterfaces: yes
+webrtcIPsFromInterfacesList: []
+webrtcAllowOrigin: '*'
+
+###############################################
+# 认证设置
+###############################################
+
+authMethod: internal
+authInternalUsers:
+  # 匿名用户 - 允许读取所有流（WebRTC/HLS播放需要）
+  - user: ""
+    pass: ""
+    permissions:
+      - action: read
+      - action: playback
+  # 管理员用户 - 完整权限
+  - user: admin
+    pass: admin
+    permissions:
+      - action: api
+      - action: read
+      - action: publish
+        path: ''
+      - action: playback
+
+###############################################
+# 路径设置
+###############################################
+
+paths:
+  all_others:
+    source: publisher

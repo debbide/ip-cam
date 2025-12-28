@@ -1,0 +1,30 @@
+services:
+  ip-cam-backend:
+    build: .
+    container_name: ip-cam-backend
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-3002}:3001" # API
+      - "${RTSP_PORT:-8654}:8554" # RTSP
+      - "${HLS_PORT:-8988}:8888" # HLS
+      - "${WEBRTC_PORT:-8989}:8989" # WebRTC (WHEP) - 1:1 映射
+      - "8289:8289/udp" # WebRTC ICE/STUN - 1:1 映射
+    environment:
+      - TZ=Asia/Shanghai
+      - MEDIAMTX_API=http://127.0.0.1:9997
+      # 认证密码（可选，留空表示无需认证）
+      - AUTH_PASSWORD=${AUTH_PASSWORD:-}
+      # 端口配置（用于返回给前端）
+      - RTSP_PORT=${RTSP_PORT:-8654}
+      - HLS_PORT=${HLS_PORT:-8988}
+      - WEBRTC_PORT=${WEBRTC_PORT:-8989}
+    volumes:
+      - streams-data:/app/data
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:3001/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  streams-data:

@@ -1,0 +1,16 @@
+{
+  "name": "ip-cam-backend",
+  "version": "1.0.0",
+  "description": "IP Cam Streamer Backend API",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^5.0.1",
+    "jsonwebtoken": "^9.0.2"
+  }
+}
