@@ -17,6 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: separated
           fetch-depth: 2
 
       - name: Get version from package.json
@@ -46,6 +47,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: separated
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

@@ -18,6 +18,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: separated
           fetch-depth: 2
 
       - name: Get version from package.json
@@ -47,6 +48,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: separated
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
