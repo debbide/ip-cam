@@ -6,7 +6,6 @@ on:
       - separated
     paths:
       - 'ip-cam-separated/backend/**'
-      - 'ip-cam-separated/frontend/package.json' # 版本号变更触发
   workflow_dispatch:
 
 permissions:
@@ -14,46 +13,18 @@ permissions:
   packages: write
 
 jobs:
-  check-version:
+  build-backend:
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.get_version.outputs.version }}
-      version_changed: ${{ steps.check_change.outputs.changed }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: separated
-          fetch-depth: 2
 
       - name: Get version from package.json
         id: get_version
         run: |
           VERSION=$(jq -r '.version' ip-cam-separated/frontend/package.json)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Check if version changed
-        id: check_change
-        run: |
-          if git rev-parse HEAD~1 >/dev/null 2>&1; then
-            OLD_VERSION=$(git show HEAD~1:ip-cam-separated/frontend/package.json 2>/dev/null | jq -r '.version' || echo "0.0.0")
-            NEW_VERSION=$(jq -r '.version' ip-cam-separated/frontend/package.json)
-            if [ "$OLD_VERSION" != "$NEW_VERSION" ]; then
-              echo "changed=true" >> $GITHUB_OUTPUT
-            else
-              echo "changed=false" >> $GITHUB_OUTPUT
-            fi
-          else
-            echo "changed=true" >> $GITHUB_OUTPUT
-          fi
-
-  build-backend:
-    needs: check-version
-    if: needs.check-version.outputs.version_changed == 'true' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: separated
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -72,7 +43,7 @@ jobs:
           push: true
           tags: |
             ghcr.io/${{ github.repository_owner }}/ip-cam-backend:latest
-            ghcr.io/${{ github.repository_owner }}/ip-cam-backend:${{ needs.check-version.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/ip-cam-backend:${{ steps.get_version.outputs.version }}
             ghcr.io/${{ github.repository_owner }}/ip-cam-backend:v1.0.20
 
       - name: Create Release
@@ -81,7 +52,7 @@ jobs:
           tag_name: v1.0.20
           name: "IP Cam Streamer v1.0.20"
           body: |
-            ## Backend v${{ needs.check-version.outputs.version }}
+            ## Backend v${{ steps.get_version.outputs.version }}
             
             Docker Image:
             ```bash
