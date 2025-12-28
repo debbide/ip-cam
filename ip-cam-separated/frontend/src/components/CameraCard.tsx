@@ -12,6 +12,7 @@ import { RecordingBadge } from '@/components/RecordingControl';
 import { VideoRecorder } from '@/components/VideoRecorder';
 import { useHumanDetector } from '@/hooks/useHumanDetector';
 import { saveScreenshot } from '@/utils/fileSaver';
+import { usePermission } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import {
   Video,
@@ -38,6 +39,7 @@ interface CameraCardProps {
 }
 
 export function CameraCard({ camera, isSelected, onSelect, onFullscreen, onToggleRecording, onEditDevice, onRotate, streamPassword }: CameraCardProps) {
+  const { isAdmin } = usePermission();
   const webrtcRef = useRef<WebrtcPlayerRef>(null);
   const hlsRef = useRef<HlsPlayerRef>(null);
   const flvRef = useRef<FlvPlayerRef>(null);
@@ -246,111 +248,117 @@ export function CameraCard({ camera, isSelected, onSelect, onFullscreen, onToggl
           </div>
         )}
 
-        {/* Hover Actions */}
+        {/* Hover Actions - Admin only */}
         <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-30">
-          <Button
-            variant="secondary"
-            size="icon"
-            className="h-8 w-8 rounded-full backdrop-blur-sm bg-background/60 hover:bg-background/80"
-            onClick={handleFullscreen}
-          >
-            <Maximize2 className="w-4 h-4" />
-          </Button>
-          <Button
-            variant="secondary"
-            size="icon"
-            className="h-8 w-8 rounded-full backdrop-blur-sm bg-background/60 hover:bg-background/80"
-            onClick={(e) => {
-              e.stopPropagation();
-              onEditDevice?.(camera);
-            }}
-          >
-            <Settings className="w-4 h-4" />
-          </Button>
+          {isAdmin && (
+            <>
+              <Button
+                variant="secondary"
+                size="icon"
+                className="h-8 w-8 rounded-full backdrop-blur-sm bg-background/60 hover:bg-background/80"
+                onClick={handleFullscreen}
+              >
+                <Maximize2 className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="secondary"
+                size="icon"
+                className="h-8 w-8 rounded-full backdrop-blur-sm bg-background/60 hover:bg-background/80"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditDevice?.(camera);
+                }}
+              >
+                <Settings className="w-4 h-4" />
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
       {/* Info Bar */}
       <div className="p-2 border-t border-border/50">
-        {/* Quick Action Buttons */}
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-1">
-            {/* Screenshot Button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={handleScreenshot}
-              disabled={isCapturing || camera.status !== 'online'}
-              title="截图"
-            >
-              <CameraIcon className="w-3.5 h-3.5" />
-            </Button>
-
-            {/* Recording Button - Replaced with VideoRecorder */}
-            <VideoRecorder camera={camera} mediaRef={mediaRef} />
-
-            {/* Rotation Button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={(e) => {
-                e.stopPropagation();
-                onRotate?.(camera);
-              }}
-              title={`旋转画面 (当前: ${camera.rotation || 0}°)`}
-            >
-              <RotateCw className="w-3.5 h-3.5" />
-            </Button>
-
-            {/* Human Detection Toggle */}
-            {camera.streamType !== 'mjpeg' && (
+        {/* Quick Action Buttons - Admin only */}
+        {isAdmin && (
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-1">
+              {/* Screenshot Button */}
               <Button
-                variant={humanDetector.isDetecting ? "default" : "ghost"}
+                variant="ghost"
                 size="icon"
-                className={`h-7 w-7 ${humanDetector.isDetecting ? 'bg-primary' : ''}`}
-                onClick={handleToggleHumanDetection}
-                disabled={camera.status !== 'online' || humanDetector.isModelLoading}
-                title={humanDetector.isDetecting ? "关闭人形检测" : "开启人形检测"}
+                className="h-7 w-7"
+                onClick={handleScreenshot}
+                disabled={isCapturing || camera.status !== 'online'}
+                title="截图"
               >
-                <User className="w-3.5 h-3.5" />
+                <CameraIcon className="w-3.5 h-3.5" />
               </Button>
-            )}
 
-            {/* Audio/Volume Control */}
-            <div onClick={(e) => e.stopPropagation()}>
-              {camera.streamType === 'webrtc' ? (
-                <VolumeControl
-                  onVolumeChange={(vol) => webrtcRef.current?.setVolume(vol)}
-                  onMuteToggle={(muted) => webrtcRef.current?.setMuted(muted)}
-                  compact
-                />
-              ) : (
-                <AudioPlayer
-                  audioUrl={camera.audioUrl}
-                  isEnabled={camera.hasAudio}
-                  isOnline={camera.status === 'online'}
-                  compact
-                />
+              {/* Recording Button */}
+              <VideoRecorder camera={camera} mediaRef={mediaRef} />
+
+              {/* Rotation Button */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRotate?.(camera);
+                }}
+                title={`旋转画面 (当前: ${camera.rotation || 0}°)`}
+              >
+                <RotateCw className="w-3.5 h-3.5" />
+              </Button>
+
+              {/* Human Detection Toggle */}
+              {camera.streamType !== 'mjpeg' && (
+                <Button
+                  variant={humanDetector.isDetecting ? "default" : "ghost"}
+                  size="icon"
+                  className={`h-7 w-7 ${humanDetector.isDetecting ? 'bg-primary' : ''}`}
+                  onClick={handleToggleHumanDetection}
+                  disabled={camera.status !== 'online' || humanDetector.isModelLoading}
+                  title={humanDetector.isDetecting ? "关闭人形检测" : "开启人形检测"}
+                >
+                  <User className="w-3.5 h-3.5" />
+                </Button>
+              )}
+
+              {/* Audio/Volume Control */}
+              <div onClick={(e) => e.stopPropagation()}>
+                {camera.streamType === 'webrtc' ? (
+                  <VolumeControl
+                    onVolumeChange={(vol) => webrtcRef.current?.setVolume(vol)}
+                    onMuteToggle={(muted) => webrtcRef.current?.setMuted(muted)}
+                    compact
+                  />
+                ) : (
+                  <AudioPlayer
+                    audioUrl={camera.audioUrl}
+                    isEnabled={camera.hasAudio}
+                    isOnline={camera.status === 'online'}
+                    compact
+                  />
+                )}
+              </div>
+            </div>
+
+            {/* Status Indicators */}
+            <div className="flex items-center gap-1.5">
+              {camera.isRecording && (
+                <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5 animate-pulse">
+                  REC
+                </Badge>
+              )}
+              {humanDetector.isDetecting && humanDetector.humanDetected && (
+                <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5 animate-pulse">
+                  {humanDetector.detectionCount}人
+                </Badge>
               )}
             </div>
           </div>
-
-          {/* Status Indicators */}
-          <div className="flex items-center gap-1.5">
-            {camera.isRecording && (
-              <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5 animate-pulse">
-                REC
-              </Badge>
-            )}
-            {humanDetector.isDetecting && humanDetector.humanDetected && (
-              <Badge variant="destructive" className="text-[10px] px-1.5 py-0 h-5 animate-pulse">
-                {humanDetector.detectionCount}人
-              </Badge>
-            )}
-          </div>
-        </div>
+        )}
 
         {/* Device Info */}
         <div className="flex items-center justify-between text-xs text-muted-foreground">

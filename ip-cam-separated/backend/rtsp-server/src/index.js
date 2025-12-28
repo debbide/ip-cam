@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import { exec } from 'child_process';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 
 const app = express();
 
@@ -31,6 +32,7 @@ const streams = new Map();
 const DATA_DIR = process.env.DATA_DIR || '/app/data';
 const CAMERAS_FILE = path.join(DATA_DIR, 'cameras.json');
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
+const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const MEDIAMTX_CONFIG_FILE = '/etc/mediamtx.yml';
 
 const MEDIAMTX_API = process.env.MEDIAMTX_API || 'http://127.0.0.1:9997';
@@ -126,8 +128,75 @@ function saveSettings() {
     }
 }
 
+// ==================== 用户管理 ====================
+
+// 默认管理员账户
+const DEFAULT_ADMIN = {
+    username: 'admin',
+    password: 'Admin@123',
+    isAdmin: true
+};
+
+// 内存中的用户列表
+let users = [];
+
+/**
+ * 密码哈希
+ */
+function hashPassword(password) {
+    return crypto.createHash('sha256').update(password + 'ip-cam-salt-2024').digest('hex');
+}
+
+/**
+ * 加载用户列表
+ */
+function loadUsers() {
+    try {
+        ensureDataDir();
+        if (fs.existsSync(USERS_FILE)) {
+            const data = fs.readFileSync(USERS_FILE, 'utf-8');
+            users = JSON.parse(data);
+            console.log(`Loaded ${users.length} users from ${USERS_FILE}`);
+        } else {
+            // 首次启动，用户列表为空，第一个注册的用户将成为管理员
+            users = [];
+            console.log('No users found, first registered user will be admin');
+        }
+    } catch (err) {
+        console.error('Failed to load users:', err);
+        users = [];
+    }
+}
+
+/**
+ * 保存用户列表
+ */
+function saveUsers() {
+    try {
+        ensureDataDir();
+        fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2));
+        console.log(`Saved ${users.length} users to ${USERS_FILE}`);
+    } catch (err) {
+        console.error('Failed to save users:', err);
+    }
+}
+
+/**
+ * 验证密码强度
+ */
+function validatePassword(password) {
+    const errors = [];
+    if (password.length < 8) errors.push('密码长度至少8位');
+    if (!/[A-Z]/.test(password)) errors.push('需要包含大写字母');
+    if (!/[a-z]/.test(password)) errors.push('需要包含小写字母');
+    if (!/[0-9]/.test(password)) errors.push('需要包含数字');
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) errors.push('需要包含特殊字符');
+    return { valid: errors.length === 0, errors };
+}
+
 // 初始化加载
 loadSettings();
+loadUsers();
 
 /**
  * 更新 MediaMTX 配置文件
@@ -360,7 +429,211 @@ async function stopStream(streamId) {
 
 // ==================== API 路由 ====================
 
-// 登录接口
+// ==================== 用户认证 API ====================
+
+// 用户登录
+app.post('/api/auth/login', (req, res) => {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+        return res.status(400).json({ error: '请输入用户名和密码' });
+    }
+
+    const user = users.find(u => u.username === username);
+    if (!user) {
+        return res.status(401).json({ error: '用户名或密码错误' });
+    }
+
+    const hash = hashPassword(password);
+    if (hash !== user.passwordHash) {
+        return res.status(401).json({ error: '用户名或密码错误' });
+    }
+
+    const token = jwt.sign(
+        { username: user.username, isAdmin: user.isAdmin },
+        JWT_SECRET,
+        { expiresIn: '7d' }
+    );
+
+    res.json({
+        token,
+        user: {
+            username: user.username,
+            isAdmin: user.isAdmin
+        }
+    });
+});
+
+// 获取当前用户信息
+app.get('/api/auth/me', (req, res) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: '未登录' });
+    }
+
+    try {
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const user = users.find(u => u.username === decoded.username);
+        if (!user) {
+            return res.status(401).json({ error: '用户不存在' });
+        }
+        res.json({
+            username: user.username,
+            isAdmin: user.isAdmin
+        });
+    } catch (err) {
+        return res.status(401).json({ error: 'Token 无效或已过期' });
+    }
+});
+
+// 检查是否有用户
+app.get('/api/auth/has-users', (req, res) => {
+    res.json({ hasUsers: users.length > 0 });
+});
+
+// 用户注册（首个用户自动成为管理员）
+app.post('/api/auth/register', (req, res) => {
+    const { username, password } = req.body;
+
+    if (!username || username.length < 3) {
+        return res.status(400).json({ error: '用户名至少3个字符' });
+    }
+
+    if (users.some(u => u.username === username)) {
+        return res.status(400).json({ error: '用户名已存在' });
+    }
+
+    const validation = validatePassword(password);
+    if (!validation.valid) {
+        return res.status(400).json({ error: validation.errors.join('\n') });
+    }
+
+    // 首个用户自动成为管理员
+    const isFirstUser = users.length === 0;
+    const newUser = {
+        username,
+        passwordHash: hashPassword(password),
+        isAdmin: isFirstUser,
+        createdAt: new Date().toISOString()
+    };
+
+    users.push(newUser);
+    saveUsers();
+
+    // 注册成功后自动登录
+    const token = jwt.sign(
+        { username: newUser.username, isAdmin: newUser.isAdmin },
+        JWT_SECRET,
+        { expiresIn: '7d' }
+    );
+
+    res.json({
+        token,
+        user: {
+            username: newUser.username,
+            isAdmin: newUser.isAdmin
+        },
+        message: isFirstUser ? '管理员账户创建成功' : '用户创建成功'
+    });
+});
+
+// ==================== 用户管理 API (管理员专用) ====================
+
+// 管理员验证中间件
+function adminMiddleware(req, res, next) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: '未登录' });
+    }
+
+    try {
+        const token = authHeader.substring(7);
+        const decoded = jwt.verify(token, JWT_SECRET);
+        if (!decoded.isAdmin) {
+            return res.status(403).json({ error: '需要管理员权限' });
+        }
+        req.user = decoded;
+        next();
+    } catch (err) {
+        return res.status(401).json({ error: 'Token 无效或已过期' });
+    }
+}
+
+// 获取用户列表
+app.get('/api/users', adminMiddleware, (req, res) => {
+    const userList = users.map(u => ({
+        username: u.username,
+        isAdmin: u.isAdmin,
+        createdAt: u.createdAt
+    }));
+    res.json(userList);
+});
+
+// 创建用户
+app.post('/api/users', adminMiddleware, (req, res) => {
+    const { username, password, isAdmin } = req.body;
+
+    if (!username || username.length < 3) {
+        return res.status(400).json({ error: '用户名至少3个字符' });
+    }
+
+    if (users.some(u => u.username === username)) {
+        return res.status(400).json({ error: '用户名已存在' });
+    }
+
+    const validation = validatePassword(password);
+    if (!validation.valid) {
+        return res.status(400).json({ error: validation.errors.join('\n') });
+    }
+
+    const newUser = {
+        username,
+        passwordHash: hashPassword(password),
+        isAdmin: !!isAdmin,
+        createdAt: new Date().toISOString()
+    };
+
+    users.push(newUser);
+    saveUsers();
+
+    res.json({
+        username: newUser.username,
+        isAdmin: newUser.isAdmin,
+        createdAt: newUser.createdAt
+    });
+});
+
+// 删除用户
+app.delete('/api/users/:username', adminMiddleware, (req, res) => {
+    const { username } = req.params;
+
+    // 不能删除自己
+    if (req.user.username === username) {
+        return res.status(400).json({ error: '不能删除当前登录用户' });
+    }
+
+    // 确保至少保留一个管理员
+    const admins = users.filter(u => u.isAdmin);
+    const targetUser = users.find(u => u.username === username);
+
+    if (!targetUser) {
+        return res.status(404).json({ error: '用户不存在' });
+    }
+
+    if (targetUser.isAdmin && admins.length <= 1) {
+        return res.status(400).json({ error: '至少需要保留一个管理员' });
+    }
+
+    users = users.filter(u => u.username !== username);
+    saveUsers();
+
+    res.json({ message: '用户已删除' });
+});
+
+
+
+// 旧版 API 登录接口（兼容）
 app.post('/api/login', (req, res) => {
     const { password } = req.body;
 

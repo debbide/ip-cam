@@ -124,14 +124,6 @@
             border: 1px solid var(--border);
         }
 
-        .camera-icon {
-            font-size: 1.5rem;
-        }
-
-        .camera-name {
-            font-weight: 600;
-        }
-
         .camera-status {
             padding: 0.25rem 0.75rem;
             border-radius: 9999px;
@@ -306,33 +298,141 @@
         .toast.error {
             border-left: 4px solid #ef4444;
         }
+
+        .user-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            margin-bottom: 0.5rem;
+        }
+
+        .user-role {
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .user-role.admin {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+        }
+
+        .user-role.user {
+            background: rgba(148, 163, 184, 0.2);
+            color: #94a3b8;
+        }
+
+        /* 登录页面样式 */
+        .login-container {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .login-card {
+            background: var(--card);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            padding: 2rem;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .login-header h1 {
+            font-size: 1.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .login-header p {
+            color: var(--muted-foreground);
+            font-size: 0.875rem;
+        }
+
+        .header-user {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--muted-foreground);
+        }
+
+        .header-user span {
+            color: var(--foreground);
+            font-weight: 500;
+        }
     </style>
 </head>
 
 <body>
-    <div class="container">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem;">
-            <h1 style="font-size:1.5rem;">📹 IP Cam 后端管理</h1>
-            <button class="btn btn-outline" onclick="openSettingsModal()">🔒 安全设置</button>
-        </div>
-        <div class="card">
-            <div class="status-bar">
-                <div class="status-item">服务器: <span id="serverName">-</span></div>
-                <div class="status-item">版本: <span id="serverVersion">-</span></div>
-                <div class="status-item">摄像头: <span id="streamCount">0</span></div>
-                <div class="status-item">API认证: <span id="apiAuthStatus">-</span></div>
+    <!-- 登录/注册页面 -->
+    <div id="authPage" class="login-container">
+        <div class="login-card">
+            <div class="login-header">
+                <h1>📹 IP Cam 后端管理</h1>
+                <p id="authSubtitle">加载中...</p>
+            </div>
+            <div id="authForm">
+                <div class="form-group">
+                    <label>用户名</label>
+                    <input type="text" id="authUsername" placeholder="至少3个字符">
+                </div>
+                <div class="form-group">
+                    <label>密码</label>
+                    <input type="password" id="authPassword" placeholder="至少8位，含大小写数字特殊字符">
+                </div>
+                <button id="authBtn" class="btn btn-primary" style="width:100%; margin-top:1rem;"
+                    onclick="doAuth()">登录</button>
             </div>
         </div>
-        <div class="card">
-            <h2><span>📋 摄像头列表</span><button class="btn btn-success" onclick="openAddModal()">➕ 添加摄像头</button></h2>
-            <div id="cameraList" class="camera-list">
-                <div class="empty-state">
-                    <div class="empty-icon">📷</div>加载中...
+    </div>
+
+    <!-- 管理主页面 -->
+    <div id="mainPage" style="display:none;">
+        <div class="container">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem;">
+                <h1 style="font-size:1.5rem;">📹 IP Cam 后端管理</h1>
+                <div style="display:flex; align-items:center; gap:1rem;">
+                    <div class="header-user">
+                        <span id="currentUsername">-</span>
+                        <span id="currentRole" class="user-role admin">管理员</span>
+                    </div>
+                    <button class="btn btn-outline" onclick="openUsersModal()">👥 用户管理</button>
+                    <button class="btn btn-outline" onclick="openSettingsModal()">🔒 安全设置</button>
+                    <button class="btn btn-danger" onclick="logout()">退出</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="status-bar">
+                    <div class="status-item">服务器: <span id="serverName">-</span></div>
+                    <div class="status-item">版本: <span id="serverVersion">-</span></div>
+                    <div class="status-item">摄像头: <span id="streamCount">0</span></div>
+                    <div class="status-item">API认证: <span id="apiAuthStatus">-</span></div>
+                </div>
+            </div>
+            <div class="card">
+                <h2><span>📋 摄像头列表</span><button class="btn btn-success" onclick="openAddModal()">➕ 添加摄像头</button></h2>
+                <div id="cameraList" class="camera-list">
+                    <div class="empty-state">
+                        <div class="empty-icon">📷</div>加载中...
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- 添加摄像头弹窗 -->
     <div id="cameraModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -381,6 +481,7 @@
         </div>
     </div>
 
+    <!-- 安全设置弹窗 -->
     <div id="settingsModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -407,10 +508,42 @@
         </div>
     </div>
 
+    <!-- 用户管理弹窗 -->
+    <div id="usersModal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <span class="modal-title">👥 用户管理</span>
+                <button class="modal-close" onclick="closeUsersModal()">&times;</button>
+            </div>
+            <div id="userList">
+                <div class="empty-state">
+                    <div class="empty-icon">👤</div>加载中...
+                </div>
+            </div>
+            <div style="border-top: 1px solid var(--border); margin-top: 1rem; padding-top: 1rem;">
+                <h3 style="font-size: 1rem; margin-bottom: 1rem;">➕ 添加用户</h3>
+                <div class="form-row">
+                    <div class="form-group"><label>用户名</label><input type="text" id="newUserName" placeholder="至少3个字符">
+                    </div>
+                    <div class="form-group"><label>密码</label><input type="password" id="newUserPass" placeholder="强密码">
+                    </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom:1rem;">
+                    <input type="checkbox" id="newUserAdmin" style="width:16px; height:16px;">
+                    <label style="font-size:0.85rem;">管理员权限</label>
+                </div>
+                <button class="btn btn-success" onclick="addUser()">添加用户</button>
+            </div>
+        </div>
+    </div>
+
     <div id="toast" class="toast"></div>
 
     <script>
         const API_BASE = window.location.origin;
+        let authToken = localStorage.getItem('admin_token');
+        let currentUser = JSON.parse(localStorage.getItem('admin_user') || 'null');
+        let isRegisterMode = false;
 
         function showToast(msg, type = 'success') {
             const t = document.getElementById('toast');
@@ -419,6 +552,98 @@
             setTimeout(() => t.className = 'toast', 3000);
         }
 
+        function getAuthHeaders() {
+            return authToken ? { 'Authorization': `Bearer ${authToken}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
+        }
+
+        // ==================== 认证 ====================
+        async function checkAuthState() {
+            try {
+                const res = await fetch(`${API_BASE}/api/auth/has-users`);
+                const { hasUsers } = await res.json();
+
+                if (!hasUsers) {
+                    // 没有用户，显示注册表单
+                    isRegisterMode = true;
+                    document.getElementById('authSubtitle').textContent = '首次使用，请创建管理员账户';
+                    document.getElementById('authBtn').textContent = '创建管理员';
+                } else if (authToken && currentUser) {
+                    // 已登录，显示主页面
+                    showMainPage();
+                    return;
+                } else {
+                    // 有用户，显示登录表单
+                    isRegisterMode = false;
+                    document.getElementById('authSubtitle').textContent = '请登录管理员账户';
+                    document.getElementById('authBtn').textContent = '登录';
+                }
+
+                document.getElementById('authPage').style.display = 'flex';
+                document.getElementById('mainPage').style.display = 'none';
+            } catch (e) {
+                showToast('无法连接服务器', 'error');
+            }
+        }
+
+        async function doAuth() {
+            const username = document.getElementById('authUsername').value.trim();
+            const password = document.getElementById('authPassword').value;
+
+            if (!username || username.length < 3) {
+                showToast('用户名至少3个字符', 'error');
+                return;
+            }
+            if (!password) {
+                showToast('请输入密码', 'error');
+                return;
+            }
+
+            const endpoint = isRegisterMode ? '/api/auth/register' : '/api/auth/login';
+
+            try {
+                const res = await fetch(`${API_BASE}${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    authToken = data.token;
+                    currentUser = data.user;
+                    localStorage.setItem('admin_token', authToken);
+                    localStorage.setItem('admin_user', JSON.stringify(currentUser));
+                    showToast(data.message || '登录成功');
+                    showMainPage();
+                } else {
+                    showToast(data.error || '操作失败', 'error');
+                }
+            } catch (e) {
+                showToast('操作失败', 'error');
+            }
+        }
+
+        function logout() {
+            authToken = null;
+            currentUser = null;
+            localStorage.removeItem('admin_token');
+            localStorage.removeItem('admin_user');
+            document.getElementById('authPage').style.display = 'flex';
+            document.getElementById('mainPage').style.display = 'none';
+            checkAuthState();
+        }
+
+        function showMainPage() {
+            document.getElementById('authPage').style.display = 'none';
+            document.getElementById('mainPage').style.display = 'block';
+            document.getElementById('currentUsername').textContent = currentUser?.username || '-';
+            document.getElementById('currentRole').textContent = currentUser?.isAdmin ? '管理员' : '用户';
+            document.getElementById('currentRole').className = `user-role ${currentUser?.isAdmin ? 'admin' : 'user'}`;
+            checkServer();
+        }
+
+        // ==================== 服务器信息 ====================
         async function checkServer() {
             try {
                 const res = await fetch(`${API_BASE}/api/server-info`);
@@ -446,8 +671,8 @@
                 list.innerHTML = cams.map(c => `
                     <div class="camera-item">
                         <div style="display:flex; align-items:center; gap:1rem;">
-                            <span class="camera-icon">📹</span>
-                            <span class="camera-name">${c.name || c.id}</span>
+                            <span style="font-size:1.5rem;">📹</span>
+                            <span style="font-weight:600;">${c.name || c.id}</span>
                         </div>
                         <div style="display:flex; align-items:center; gap:1rem;">
                             <span class="camera-status ${c.status}">${c.status === 'running' ? '运行中' : c.status}</span>
@@ -458,6 +683,7 @@
             } catch (e) { showToast('加载失败', 'error'); }
         }
 
+        // ==================== 摄像头管理 ====================
         function openAddModal() {
             document.getElementById('camName').value = '';
             document.getElementById('camIp').value = '';
@@ -471,37 +697,6 @@
         }
 
         function closeModal() { document.getElementById('cameraModal').classList.remove('show'); }
-        function openSettingsModal() { loadSettings(); document.getElementById('settingsModal').classList.add('show'); }
-        function closeSettingsModal() { document.getElementById('settingsModal').classList.remove('show'); }
-        function toggleApiAuthFields() { document.getElementById('apiAuthFields').style.display = document.getElementById('apiAuthEnabled').checked ? 'block' : 'none'; }
-
-        async function loadSettings() {
-            try {
-                const res = await fetch(`${API_BASE}/api/settings`);
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.apiAuth) {
-                        document.getElementById('apiAuthEnabled').checked = data.apiAuth.enabled;
-                        toggleApiAuthFields();
-                    }
-                }
-            } catch (e) { showToast('加载设置失败', 'error'); }
-        }
-
-        async function saveSettings() {
-            const enabled = document.getElementById('apiAuthEnabled').checked;
-            const password = document.getElementById('apiPassword').value;
-            if (enabled && !password) { showToast('开启认证时必须设置密码', 'error'); return; }
-            try {
-                const res = await fetch(`${API_BASE}/api/settings`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ apiAuth: { enabled, password } })
-                });
-                if (res.ok) { showToast('设置已保存'); closeSettingsModal(); setTimeout(() => checkServer(), 1000); }
-                else { showToast('保存失败', 'error'); }
-            } catch (e) { showToast('保存失败', 'error'); }
-        }
 
         function switchTab(name) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -536,7 +731,7 @@
             try {
                 const res = await fetch(`${API_BASE}/api/streams`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getAuthHeaders(),
                     body: JSON.stringify({ id, name, rtspUrl })
                 });
                 if (res.ok) { showToast('添加成功'); closeModal(); loadCameras(); }
@@ -547,13 +742,116 @@
         async function deleteCamera(id) {
             if (!confirm('确定删除？')) return;
             try {
-                const res = await fetch(`${API_BASE}/api/streams/${id}`, { method: 'DELETE' });
+                const res = await fetch(`${API_BASE}/api/streams/${id}`, { method: 'DELETE', headers: getAuthHeaders() });
                 if (res.ok) { showToast('已删除'); loadCameras(); }
                 else { showToast('删除失败', 'error'); }
             } catch (e) { showToast('删除失败', 'error'); }
         }
 
-        checkServer();
+        // ==================== 设置 ====================
+        function openSettingsModal() { loadSettings(); document.getElementById('settingsModal').classList.add('show'); }
+        function closeSettingsModal() { document.getElementById('settingsModal').classList.remove('show'); }
+        function toggleApiAuthFields() { document.getElementById('apiAuthFields').style.display = document.getElementById('apiAuthEnabled').checked ? 'block' : 'none'; }
+
+        async function loadSettings() {
+            try {
+                const res = await fetch(`${API_BASE}/api/settings`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.apiAuth) {
+                        document.getElementById('apiAuthEnabled').checked = data.apiAuth.enabled;
+                        toggleApiAuthFields();
+                    }
+                }
+            } catch (e) { showToast('加载设置失败', 'error'); }
+        }
+
+        async function saveSettings() {
+            const enabled = document.getElementById('apiAuthEnabled').checked;
+            const password = document.getElementById('apiPassword').value;
+            if (enabled && !password) { showToast('开启认证时必须设置密码', 'error'); return; }
+            try {
+                const res = await fetch(`${API_BASE}/api/settings`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ apiAuth: { enabled, password } })
+                });
+                if (res.ok) { showToast('设置已保存'); closeSettingsModal(); setTimeout(() => checkServer(), 1000); }
+                else { showToast('保存失败', 'error'); }
+            } catch (e) { showToast('保存失败', 'error'); }
+        }
+
+        // ==================== 用户管理 ====================
+        function openUsersModal() { loadUsers(); document.getElementById('usersModal').classList.add('show'); }
+        function closeUsersModal() { document.getElementById('usersModal').classList.remove('show'); }
+
+        async function loadUsers() {
+            const list = document.getElementById('userList');
+            try {
+                const res = await fetch(`${API_BASE}/api/users`, { headers: getAuthHeaders() });
+                if (res.status === 401 || res.status === 403) {
+                    list.innerHTML = '<div class="empty-state">需要管理员权限</div>';
+                    return;
+                }
+                const users = await res.json();
+                if (users.length === 0) {
+                    list.innerHTML = '<div class="empty-state"><div class="empty-icon">👤</div>暂无用户</div>';
+                    return;
+                }
+                list.innerHTML = users.map(u => `
+                    <div class="user-item">
+                        <div style="display:flex; align-items:center; gap:1rem;">
+                            <span style="font-size:1.25rem;">${u.isAdmin ? '👑' : '👤'}</span>
+                            <span style="font-weight:600;">${u.username}</span>
+                            <span class="user-role ${u.isAdmin ? 'admin' : 'user'}">${u.isAdmin ? '管理员' : '普通用户'}</span>
+                        </div>
+                        <button class="btn btn-danger" onclick="deleteUser('${u.username}')">删除</button>
+                    </div>
+                `).join('');
+            } catch (e) {
+                list.innerHTML = '<div class="empty-state">加载失败</div>';
+            }
+        }
+
+        async function addUser() {
+            const username = document.getElementById('newUserName').value.trim();
+            const password = document.getElementById('newUserPass').value;
+            const isAdmin = document.getElementById('newUserAdmin').checked;
+
+            if (!username || username.length < 3) { showToast('用户名至少3个字符', 'error'); return; }
+            if (!password || password.length < 8) { showToast('密码至少8个字符', 'error'); return; }
+
+            try {
+                const res = await fetch(`${API_BASE}/api/users`, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ username, password, isAdmin })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast('用户添加成功');
+                    document.getElementById('newUserName').value = '';
+                    document.getElementById('newUserPass').value = '';
+                    document.getElementById('newUserAdmin').checked = false;
+                    loadUsers();
+                } else {
+                    showToast(data.error || '添加失败', 'error');
+                }
+            } catch (e) { showToast('添加失败', 'error'); }
+        }
+
+        async function deleteUser(username) {
+            if (!confirm(`确定删除用户 "${username}"？`)) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/users/${username}`, { method: 'DELETE', headers: getAuthHeaders() });
+                const data = await res.json();
+                if (res.ok) { showToast('用户已删除'); loadUsers(); }
+                else { showToast(data.error || '删除失败', 'error'); }
+            } catch (e) { showToast('删除失败', 'error'); }
+        }
+
+        // 初始化
+        checkAuthState();
     </script>
 </body>
 

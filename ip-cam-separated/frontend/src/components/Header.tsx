@@ -11,7 +11,8 @@ import {
   PlayCircle,
   User,
   Activity,
-  Trash2
+  Trash2,
+  LogOut
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import {
@@ -21,6 +22,7 @@ import {
 } from '@/components/ui/sheet';
 import { MotionEvent } from '@/components/MotionEventLog';
 import { ServerConfigDialog } from '@/components/ServerConfigDialog';
+import { usePermission, useAuth } from '@/contexts/AuthContext';
 
 interface HeaderProps {
   alertCount?: number;
@@ -33,6 +35,9 @@ interface HeaderProps {
 }
 
 export function Header({ alertCount = 0, motionEvents = [], onClearEvents, onMenuClick, isMobileMenuOpen, configManager, onPlaybackClick }: HeaderProps) {
+  const { isAdmin } = usePermission();
+  const { currentUser, logout } = useAuth();
+
   return (
     <header className="h-14 md:h-16 bg-card border-b border-border px-3 md:px-6 flex items-center justify-between gap-3">
       {/* Mobile Menu Button */}
@@ -71,8 +76,8 @@ export function Header({ alertCount = 0, motionEvents = [], onClearEvents, onMen
 
       {/* Actions */}
       <div className="flex items-center gap-1 md:gap-2">
-        {/* Server Config Button */}
-        <ServerConfigDialog />
+        {/* Server Config Button - Admin only */}
+        {isAdmin && <ServerConfigDialog />}
 
         {/* Mobile Search Button */}
         <Sheet>
@@ -182,6 +187,24 @@ export function Header({ alertCount = 0, motionEvents = [], onClearEvents, onMen
           >
             <PlayCircle className="w-4 h-4 md:w-5 md:h-5" />
           </Button>
+        )}
+
+        {/* User Info & Logout */}
+        {currentUser && (
+          <div className="flex items-center gap-2 ml-2 pl-2 border-l border-border">
+            <span className="hidden md:inline text-sm text-muted-foreground">
+              {currentUser.username}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 md:h-9 md:w-9"
+              onClick={logout}
+              title="退出登录"
+            >
+              <LogOut className="w-4 h-4 md:w-5 md:h-5" />
+            </Button>
+          </div>
         )}
       </div>
     </header>
