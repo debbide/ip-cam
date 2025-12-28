@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   check-version:
@@ -57,27 +58,37 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker image
-        run: |
-          cd ip-cam-separated/backend
-          docker build -t ip-cam-backend:${{ needs.check-version.outputs.version }} .
-          docker save ip-cam-backend:${{ needs.check-version.outputs.version }} | gzip > ip-cam-backend-${{ needs.check-version.outputs.version }}.tar.gz
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ip-cam-separated/backend
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/ip-cam-backend:latest
+            ghcr.io/${{ github.repository_owner }}/ip-cam-backend:${{ needs.check-version.outputs.version }}
+            ghcr.io/${{ github.repository_owner }}/ip-cam-backend:v1.0.20
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: backend-v${{ needs.check-version.outputs.version }}
-          name: "[Backend] Release v${{ needs.check-version.outputs.version }}"
+          tag_name: v1.0.20
+          name: "IP Cam Streamer v1.0.20"
           body: |
             ## Backend v${{ needs.check-version.outputs.version }}
             
-            Docker backend image for separated version.
-            
+            Docker Image:
             ```bash
-            docker load < ip-cam-backend-${{ needs.check-version.outputs.version }}.tar.gz
+            docker pull ghcr.io/${{ github.repository_owner }}/ip-cam-backend:v1.0.20
             ```
-          files: ip-cam-separated/backend/ip-cam-backend-*.tar.gz
           draft: false
           prerelease: false
+          append_body: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
