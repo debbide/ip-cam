@@ -61,9 +61,13 @@ jobs:
         run: |
           cd ip-cam-separated/backend
           docker build -t ip-cam-backend:${{ needs.check-version.outputs.version }} .
-          docker save ip-cam-backend:${{ needs.check-version.outputs.version }} | gzip > ip-cam-backend-${{ needs.check-version.outputs.version }}.tar.gz
+          # Split save and gzip to ensure reliability
+          docker save -o ip-cam-backend-${{ needs.check-version.outputs.version }}.tar ip-cam-backend:${{ needs.check-version.outputs.version }}
+          gzip ip-cam-backend-${{ needs.check-version.outputs.version }}.tar
+          # Move to root
           mv ip-cam-backend-${{ needs.check-version.outputs.version }}.tar.gz ../../
           cd ../..
+          echo "Listing root directory to verify artifact:"
           ls -lh ip-cam-backend-*.tar.gz
 
       - name: Create Release
