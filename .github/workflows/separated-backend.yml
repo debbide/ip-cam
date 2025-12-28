@@ -66,8 +66,8 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: backend-v${{ needs.check-version.outputs.version }}
-          name: "[Backend] Release v${{ needs.check-version.outputs.version }}"
+          tag_name: v${{ needs.check-version.outputs.version }}
+          name: "Release v${{ needs.check-version.outputs.version }}"
           body: |
             ## Backend v${{ needs.check-version.outputs.version }}
             
@@ -79,5 +79,6 @@ jobs:
           files: ip-cam-separated/backend/ip-cam-backend-*.tar.gz
           draft: false
           prerelease: false
+          append_body: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

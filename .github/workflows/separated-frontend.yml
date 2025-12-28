@@ -71,8 +71,8 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: client-v${{ needs.check-version.outputs.version }}
-          name: "[Client] Release v${{ needs.check-version.outputs.version }}"
+          tag_name: v${{ needs.check-version.outputs.version }}
+          name: "Release v${{ needs.check-version.outputs.version }}"
           body: |
             ## Client v${{ needs.check-version.outputs.version }}
             
@@ -80,5 +80,6 @@ jobs:
           files: ip-cam-separated/frontend/dist-electron/*.exe
           draft: false
           prerelease: false
+          append_body: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
