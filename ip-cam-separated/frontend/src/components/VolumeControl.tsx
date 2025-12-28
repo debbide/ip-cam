@@ -25,6 +25,7 @@ export function VolumeControl({
 
     const handleVolumeChange = (value: number[]) => {
         const newVolume = value[0];
+        console.log('[VolumeControl] Volume changed:', newVolume);
         setVolume(newVolume);
 
         if (newVolume > 0 && isMuted) {
@@ -39,6 +40,7 @@ export function VolumeControl({
     };
 
     const handleMuteToggle = () => {
+        console.log('[VolumeControl] Mute toggle clicked, current isMuted:', isMuted);
         if (isMuted) {
             // 取消静音
             setIsMuted(false);

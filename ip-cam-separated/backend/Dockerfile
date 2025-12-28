@@ -1,7 +1,7 @@
 FROM node:20-alpine
 
 # 安装必要工具
-RUN apk add --no-cache supervisor curl wget
+RUN apk add --no-cache supervisor curl wget ffmpeg
 
 # 安装 MediaMTX
 RUN wget -q https://github.com/bluenviron/mediamtx/releases/download/v1.9.3/mediamtx_v1.9.3_linux_amd64.tar.gz \

@@ -3,34 +3,17 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import {
   Smartphone,
-  Plus,
   RefreshCw,
   Circle,
   Wifi,
   WifiOff,
-  Settings,
-  Trash2,
   X
 } from 'lucide-react';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { useState } from 'react';
 
 interface DeviceSidebarProps {
   cameras: Camera[];
   selectedCamera?: Camera;
   onSelectCamera: (camera: Camera) => void;
-  onAddDevice: () => void;
-  onEditDevice: (camera: Camera) => void;
-  onDeleteDevice?: (cameraId: string) => void;
   isMobile?: boolean;
   onClose?: () => void;
 }
@@ -39,31 +22,10 @@ export function DeviceSidebar({
   cameras,
   selectedCamera,
   onSelectCamera,
-  onAddDevice,
-  onEditDevice,
-  onDeleteDevice,
   isMobile = false,
   onClose,
 }: DeviceSidebarProps) {
-  const [deleteConfirmCamera, setDeleteConfirmCamera] = useState<Camera | null>(null);
   const onlineCount = cameras.filter(c => c.status === 'online').length;
-
-  const handleEdit = (e: React.MouseEvent, camera: Camera) => {
-    e.stopPropagation();
-    onEditDevice(camera);
-  };
-
-  const handleDelete = (e: React.MouseEvent, camera: Camera) => {
-    e.stopPropagation();
-    setDeleteConfirmCamera(camera);
-  };
-
-  const confirmDelete = () => {
-    if (deleteConfirmCamera && onDeleteDevice) {
-      onDeleteDevice(deleteConfirmCamera.id);
-      setDeleteConfirmCamera(null);
-    }
-  };
 
   const handleSelectCamera = (camera: Camera) => {
     onSelectCamera(camera);
@@ -124,7 +86,7 @@ export function DeviceSidebar({
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground truncate">
-                    {camera.deviceName}
+                    {camera.deviceName || camera.streamType.toUpperCase()}
                   </p>
                   <p className="text-xs font-mono text-muted-foreground/70 mt-0.5">
                     {camera.ipAddress}:{camera.port}
@@ -132,27 +94,6 @@ export function DeviceSidebar({
                 </div>
 
                 <div className="flex flex-col items-end gap-1">
-                  <div className="flex gap-0.5 opacity-0 group-hover/item:opacity-100 transition-opacity">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6"
-                      onClick={(e) => handleEdit(e, camera)}
-                    >
-                      <Settings className="w-3.5 h-3.5" />
-                    </Button>
-                    {onDeleteDevice && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-6 w-6 text-destructive hover:text-destructive"
-                        onClick={(e) => handleDelete(e, camera)}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    )}
-                  </div>
-
                   <div className="flex items-center gap-1">
                     {camera.isRecording && (
                       <Circle className="w-2.5 h-2.5 fill-destructive text-destructive animate-recording" />
@@ -173,37 +114,16 @@ export function DeviceSidebar({
             <div className="p-6 text-center">
               <Smartphone className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
               <p className="text-sm text-muted-foreground">暂无设备</p>
-              <p className="text-xs text-muted-foreground/70 mt-1">点击下方按钮添加</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">请在后端管理界面添加</p>
             </div>
           )}
         </div>
       </ScrollArea>
 
-      {/* Add Device Button */}
-      <div className="p-3 border-t border-sidebar-border">
-        <Button className="w-full gap-2" onClick={onAddDevice}>
-          <Plus className="w-4 h-4" />
-          添加设备
-        </Button>
+      {/* Footer Info */}
+      <div className="p-3 border-t border-sidebar-border text-center">
+        <p className="text-xs text-muted-foreground">设备管理请访问后端控制台</p>
       </div>
-
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={!!deleteConfirmCamera} onOpenChange={() => setDeleteConfirmCamera(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>确认删除设备</AlertDialogTitle>
-            <AlertDialogDescription>
-              确定要删除 "{deleteConfirmCamera?.name}" 吗？此操作无法撤销。
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">
-              删除
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

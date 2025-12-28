@@ -9,6 +9,7 @@ interface WebrtcPlayerProps {
     isFullscreen?: boolean;
     rotation?: number;
     initialMuted?: boolean;
+    password?: string;
 }
 
 export interface WebrtcPlayerRef {
@@ -19,7 +20,7 @@ export interface WebrtcPlayerRef {
     getVolume: () => number;
 }
 
-export const WebrtcPlayer = forwardRef<WebrtcPlayerRef, WebrtcPlayerProps>(({ url, isOnline, className = '', isFullscreen = false, rotation = 0, initialMuted = true }, ref) => {
+export const WebrtcPlayer = forwardRef<WebrtcPlayerRef, WebrtcPlayerProps>(({ url, isOnline, className = '', isFullscreen = false, rotation = 0, initialMuted = true, password }, ref) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const pcRef = useRef<RTCPeerConnection | null>(null);
     const streamRef = useRef<MediaStream | null>(null); // 保存 MediaStream 引用
@@ -224,12 +225,19 @@ export const WebrtcPlayer = forwardRef<WebrtcPlayerRef, WebrtcPlayerProps>(({ ur
                 await pc.setLocalDescription(offer);
 
                 setDebugInfo(prev => ({ ...prev, step: 'fetching_sdp' }));
+
+                const headers: HeadersInit = {
+                    'Content-Type': 'application/sdp'
+                };
+
+                if (password) {
+                    headers['Authorization'] = 'Basic ' + btoa(`viewer:${password}`);
+                }
+
                 const response = await fetch(whepUrl, {
                     method: 'POST',
                     body: offer.sdp,
-                    headers: {
-                        'Content-Type': 'application/sdp'
-                    }
+                    headers: headers
                 });
 
                 if (!response.ok) {

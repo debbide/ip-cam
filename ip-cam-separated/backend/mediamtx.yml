@@ -20,7 +20,6 @@ apiAddress: :9997
 
 rtspAddress: :8554
 protocols: [tcp, udp]
-rtspTransport: tcp
 
 ###############################################
 # HLS 设置
@@ -39,8 +38,8 @@ hlsAllowOrigin: '*'
 # WebRTC 设置
 ###############################################
 
-webrtcAddress: :8889
-webrtcLocalUDPAddress: :8189
+webrtcAddress: :8989
+webrtcLocalUDPAddress: :8289
 webrtcIPsFromInterfaces: yes
 webrtcIPsFromInterfacesList: []
 webrtcAllowOrigin: '*'
@@ -51,6 +50,13 @@ webrtcAllowOrigin: '*'
 
 authMethod: internal
 authInternalUsers:
+  # 匿名用户 - 允许读取所有流（WebRTC/HLS播放需要）
+  - user: ""
+    pass: ""
+    permissions:
+      - action: read
+      - action: playback
+  # 管理员用户 - 完整权限
   - user: admin
     pass: admin
     permissions:

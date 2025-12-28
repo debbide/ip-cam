@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IP Cam 后端管理</title>
+    <style>
+        :root {
+            --background: #020817;
+            --foreground: #f8fafc;
+            --card: #1e293b;
+            --primary: #3b82f6;
+            --secondary: #1e293b;
+            --muted: #1e293b;
+            --muted-foreground: #94a3b8;
+            --destructive: #ef4444;
+            --border: #1e293b;
+            --radius: 0.5rem;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: "Inter", -apple-system, sans-serif;
+            background: var(--background);
+            color: var(--foreground);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .card {
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            background: var(--card);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card h2 {
+            font-size: 1.25rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .status-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .status-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            font-size: 0.875rem;
+            color: var(--muted-foreground);
+        }
+
+        .status-item span {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--foreground);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius);
+            font-size: 0.875rem;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--foreground);
+        }
+
+        .btn-success {
+            background: #22c55e;
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--destructive);
+            color: white;
+        }
+
+        .camera-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .camera-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+        }
+
+        .camera-icon {
+            font-size: 1.5rem;
+        }
+
+        .camera-name {
+            font-weight: 600;
+        }
+
+        .camera-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .camera-status.running {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--card);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--foreground);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            color: var(--muted-foreground);
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--background);
+            color: var(--foreground);
+            font-size: 0.875rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .form-hint {
+            font-size: 0.75rem;
+            color: var(--muted-foreground);
+            margin-top: 0.5rem;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: flex-end;
+            margin-top: 1.5rem;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .tab {
+            padding: 0.5rem 1rem;
+            background: transparent;
+            border: none;
+            color: var(--muted-foreground);
+            cursor: pointer;
+            border-radius: var(--radius);
+        }
+
+        .tab.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .presets-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        .preset-btn {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            background: var(--muted);
+            color: var(--muted-foreground);
+            border: none;
+            cursor: pointer;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: var(--muted-foreground);
+        }
+
+        .empty-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            padding: 1rem 1.5rem;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast.error {
+            border-left: 4px solid #ef4444;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2rem;">
+            <h1 style="font-size:1.5rem;">📹 IP Cam 后端管理</h1>
+            <button class="btn btn-outline" onclick="openSettingsModal()">🔒 安全设置</button>
+        </div>
+        <div class="card">
+            <div class="status-bar">
+                <div class="status-item">服务器: <span id="serverName">-</span></div>
+                <div class="status-item">版本: <span id="serverVersion">-</span></div>
+                <div class="status-item">摄像头: <span id="streamCount">0</span></div>
+                <div class="status-item">API认证: <span id="apiAuthStatus">-</span></div>
+            </div>
+        </div>
+        <div class="card">
+            <h2><span>📋 摄像头列表</span><button class="btn btn-success" onclick="openAddModal()">➕ 添加摄像头</button></h2>
+            <div id="cameraList" class="camera-list">
+                <div class="empty-state">
+                    <div class="empty-icon">📷</div>加载中...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="cameraModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">添加摄像头</span>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="tabs">
+                <button class="tab active" onclick="switchTab('basic')">📱 基本信息</button>
+                <button class="tab" onclick="switchTab('stream')">🔗 流地址</button>
+            </div>
+            <div id="tab-basic" class="tab-content active">
+                <div class="form-group"><label>摄像头名称 *</label><input type="text" id="camName" placeholder="例如: 客厅摄像头">
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>IP 地址 *</label><input type="text" id="camIp"
+                            placeholder="192.168.1.100" oninput="updatePreview()"></div>
+                    <div class="form-group"><label>端口</label><input type="number" id="camPort" value="554"
+                            oninput="updatePreview()"></div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label>用户名（可选）</label><input type="text" id="camUser" placeholder="admin"
+                            oninput="updatePreview()"></div>
+                    <div class="form-group"><label>密码（可选）</label><input type="password" id="camPass"
+                            oninput="updatePreview()"></div>
+                </div>
+            </div>
+            <div id="tab-stream" class="tab-content">
+                <div class="form-group">
+                    <label>RTSP 流路径 *</label>
+                    <input type="text" id="camPath" value="/live" oninput="updatePreview()">
+                    <div class="form-hint"
+                        style="font-family:monospace; background:rgba(0,0,0,0.2); padding:4px 8px; border-radius:4px;"
+                        id="rtspPreview">rtsp://IP:PORT/live</div>
+                </div>
+                <div style="font-size:0.75rem; color:var(--muted-foreground); margin-top:1rem;">常用路径：</div>
+                <div class="presets-list">
+                    <button class="preset-btn" onclick="setPath('/h264_pcm.sdp')">IP Webcam</button>
+                    <button class="preset-btn" onclick="setPath('/Streaming/Channels/101')">海康威视</button>
+                    <button class="preset-btn" onclick="setPath('/live')">通用</button>
+                </div>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-outline" onclick="closeModal()">取消</button>
+                <button class="btn btn-primary" onclick="saveCamera()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">🔒 安全设置</span>
+                <button class="modal-close" onclick="closeSettingsModal()">&times;</button>
+            </div>
+            <div class="form-group">
+                <label style="font-size: 1rem; font-weight: 600;">🔑 前后端连接认证</label>
+                <div style="display:flex; align-items:center; gap:10px; margin-top:10px;">
+                    <input type="checkbox" id="apiAuthEnabled" style="width:18px; height:18px;"
+                        onchange="toggleApiAuthFields()">
+                    <span style="font-size:0.85rem; color:var(--muted-foreground);">开启后，前端连接需要密码</span>
+                </div>
+                <div id="apiAuthFields" style="display:none; margin-top:15px;">
+                    <label>连接密码</label>
+                    <input type="password" id="apiPassword" placeholder="设置连接密码" style="margin-top:5px;">
+                    <div class="form-hint">前端应用连接后端时需要输入此密码</div>
+                </div>
+            </div>
+            <div class="btn-group" style="margin-top: 20px;">
+                <button class="btn btn-outline" onclick="closeSettingsModal()">取消</button>
+                <button class="btn btn-primary" onclick="saveSettings()">保存设置</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script>
+        const API_BASE = window.location.origin;
+
+        function showToast(msg, type = 'success') {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = `toast show ${type}`;
+            setTimeout(() => t.className = 'toast', 3000);
+        }
+
+        async function checkServer() {
+            try {
+                const res = await fetch(`${API_BASE}/api/server-info`);
+                const d = await res.json();
+                document.getElementById('serverName').textContent = d.name;
+                document.getElementById('serverVersion').textContent = d.version;
+                document.getElementById('streamCount').textContent = d.streams;
+                const s = document.getElementById('apiAuthStatus');
+                s.textContent = d.authRequired ? '已启用' : '关闭';
+                s.style.color = d.authRequired ? '#f59e0b' : '#22c55e';
+                loadCameras();
+            } catch (e) { showToast('无法连接服务器', 'error'); }
+        }
+
+        async function loadCameras() {
+            try {
+                const res = await fetch(`${API_BASE}/api/streams`);
+                const cams = await res.json();
+                document.getElementById('streamCount').textContent = cams.length;
+                const list = document.getElementById('cameraList');
+                if (cams.length === 0) {
+                    list.innerHTML = '<div class="empty-state"><div class="empty-icon">📷</div>暂无摄像头</div>';
+                    return;
+                }
+                list.innerHTML = cams.map(c => `
+                    <div class="camera-item">
+                        <div style="display:flex; align-items:center; gap:1rem;">
+                            <span class="camera-icon">📹</span>
+                            <span class="camera-name">${c.name || c.id}</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:1rem;">
+                            <span class="camera-status ${c.status}">${c.status === 'running' ? '运行中' : c.status}</span>
+                            <button class="btn btn-danger" onclick="deleteCamera('${c.id}')">删除</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) { showToast('加载失败', 'error'); }
+        }
+
+        function openAddModal() {
+            document.getElementById('camName').value = '';
+            document.getElementById('camIp').value = '';
+            document.getElementById('camPort').value = '554';
+            document.getElementById('camUser').value = '';
+            document.getElementById('camPass').value = '';
+            document.getElementById('camPath').value = '/live';
+            switchTab('basic');
+            updatePreview();
+            document.getElementById('cameraModal').classList.add('show');
+        }
+
+        function closeModal() { document.getElementById('cameraModal').classList.remove('show'); }
+        function openSettingsModal() { loadSettings(); document.getElementById('settingsModal').classList.add('show'); }
+        function closeSettingsModal() { document.getElementById('settingsModal').classList.remove('show'); }
+        function toggleApiAuthFields() { document.getElementById('apiAuthFields').style.display = document.getElementById('apiAuthEnabled').checked ? 'block' : 'none'; }
+
+        async function loadSettings() {
+            try {
+                const res = await fetch(`${API_BASE}/api/settings`);
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.apiAuth) {
+                        document.getElementById('apiAuthEnabled').checked = data.apiAuth.enabled;
+                        toggleApiAuthFields();
+                    }
+                }
+            } catch (e) { showToast('加载设置失败', 'error'); }
+        }
+
+        async function saveSettings() {
+            const enabled = document.getElementById('apiAuthEnabled').checked;
+            const password = document.getElementById('apiPassword').value;
+            if (enabled && !password) { showToast('开启认证时必须设置密码', 'error'); return; }
+            try {
+                const res = await fetch(`${API_BASE}/api/settings`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ apiAuth: { enabled, password } })
+                });
+                if (res.ok) { showToast('设置已保存'); closeSettingsModal(); setTimeout(() => checkServer(), 1000); }
+                else { showToast('保存失败', 'error'); }
+            } catch (e) { showToast('保存失败', 'error'); }
+        }
+
+        function switchTab(name) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.querySelector(`.tab:nth-child(${name === 'basic' ? 1 : 2})`).classList.add('active');
+            document.getElementById(`tab-${name}`).classList.add('active');
+        }
+
+        function setPath(p) { document.getElementById('camPath').value = p; updatePreview(); }
+
+        function updatePreview() {
+            const ip = document.getElementById('camIp').value || 'IP';
+            const port = document.getElementById('camPort').value || 'PORT';
+            const user = document.getElementById('camUser').value;
+            const pass = document.getElementById('camPass').value;
+            const path = document.getElementById('camPath').value || '/live';
+            const auth = user ? `${user}${pass ? ':' + pass : ''}@` : '';
+            document.getElementById('rtspPreview').textContent = `rtsp://${auth}${ip}:${port}${path}`;
+        }
+
+        async function saveCamera() {
+            const name = document.getElementById('camName').value.trim();
+            const ip = document.getElementById('camIp').value.trim();
+            const port = document.getElementById('camPort').value || '554';
+            const user = document.getElementById('camUser').value;
+            const pass = document.getElementById('camPass').value;
+            const path = document.getElementById('camPath').value || '/live';
+            if (!name || !ip) { showToast('请填写名称和IP', 'error'); return; }
+            const id = 'cam_' + Date.now();
+            const auth = user ? `${user}${pass ? ':' + pass : ''}@` : '';
+            const rtspUrl = `rtsp://${auth}${ip}:${port}${path}`;
+            try {
+                const res = await fetch(`${API_BASE}/api/streams`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, name, rtspUrl })
+                });
+                if (res.ok) { showToast('添加成功'); closeModal(); loadCameras(); }
+                else { showToast('添加失败', 'error'); }
+            } catch (e) { showToast('添加失败', 'error'); }
+        }
+
+        async function deleteCamera(id) {
+            if (!confirm('确定删除？')) return;
+            try {
+                const res = await fetch(`${API_BASE}/api/streams/${id}`, { method: 'DELETE' });
+                if (res.ok) { showToast('已删除'); loadCameras(); }
+                else { showToast('删除失败', 'error'); }
+            } catch (e) { showToast('删除失败', 'error'); }
+        }
+
+        checkServer();
+    </script>
+</body>
+
+</html>

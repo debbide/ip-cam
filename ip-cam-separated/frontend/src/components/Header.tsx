@@ -2,30 +2,23 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   Video,
-  Settings,
   Bell,
   Grid3X3,
   LayoutGrid,
   Search,
   Menu,
   X,
-  LogOut,
   PlayCircle,
   User,
   Activity,
   Trash2
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
 import {
   Sheet,
   SheetContent,
   SheetTrigger,
 } from '@/components/ui/sheet';
-import { UserManagement } from '@/components/UserManagement';
-import { ChangePassword } from '@/components/ChangePassword';
 import { MotionEvent } from '@/components/MotionEventLog';
 import { ServerConfigDialog } from '@/components/ServerConfigDialog';
 
@@ -40,15 +33,6 @@ interface HeaderProps {
 }
 
 export function Header({ alertCount = 0, motionEvents = [], onClearEvents, onMenuClick, isMobileMenuOpen, configManager, onPlaybackClick }: HeaderProps) {
-  const { logout } = useAuth();
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    logout();
-    toast.success('已退出登录');
-    navigate('/login');
-  };
-
   return (
     <header className="h-14 md:h-16 bg-card border-b border-border px-3 md:px-6 flex items-center justify-between gap-3">
       {/* Mobile Menu Button */}
@@ -199,20 +183,6 @@ export function Header({ alertCount = 0, motionEvents = [], onClearEvents, onMen
             <PlayCircle className="w-4 h-4 md:w-5 md:h-5" />
           </Button>
         )}
-
-        <UserManagement />
-
-        <ChangePassword />
-
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-8 w-8 md:h-9 md:w-9 text-destructive hover:text-destructive hover:bg-destructive/10"
-          onClick={handleLogout}
-          title="退出登录"
-        >
-          <LogOut className="w-4 h-4 md:w-5 md:h-5" />
-        </Button>
       </div>
     </header>
   );

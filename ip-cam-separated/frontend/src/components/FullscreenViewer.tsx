@@ -31,9 +31,10 @@ interface FullscreenViewerProps {
   onClose: () => void;
   onNavigate: (camera: Camera) => void;
   onToggleRecording?: (cameraId: string) => void;
+  streamPassword?: string;
 }
 
-export function FullscreenViewer({ camera, cameras, onClose, onNavigate, onToggleRecording }: FullscreenViewerProps) {
+export function FullscreenViewer({ camera, cameras, onClose, onNavigate, onToggleRecording, streamPassword }: FullscreenViewerProps) {
   const [showPTZ, setShowPTZ] = useState(false);
   const [motionEvents, setMotionEvents] = useState<MotionEvent[]>([]);
   const mjpegRef = useRef<MjpegPlayerRef>(null);

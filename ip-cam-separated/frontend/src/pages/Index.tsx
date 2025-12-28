@@ -4,18 +4,13 @@ import { DeviceSidebar } from '@/components/DeviceSidebar';
 import { CameraCard } from '@/components/CameraCard';
 import { SystemStats } from '@/components/SystemStats';
 import { FullscreenViewer } from '@/components/FullscreenViewer';
-import { DeviceConfigDialog } from '@/components/DeviceConfigDialog';
 import { LayoutSelector, LayoutType } from '@/components/LayoutSelector';
-import { mockCameras as initialCameras } from '@/data/mockData';
 import { useSystemStats } from '@/hooks/useSystemStats';
 import { loadEventsFromStorage, clearEventsFromStorage, MotionEvent } from '@/components/MotionEventLog';
 import { Camera } from '@/types/camera';
-import { CameraFormValues } from '@/schemas/cameraSchema';
 import { useToast } from '@/hooks/use-toast';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
-import { saveConfigToStorage, loadConfigFromStorage, exportConfig, importConfig } from '@/utils/configManager';
-import { ConfigManager } from '@/components/ConfigManager';
 import { VideoPlayback } from '@/pages/VideoPlayback';
 import { HumanDetectionProvider } from '@/contexts/HumanDetectionContext';
 import { useServer } from '@/contexts/ServerContext';
@@ -23,22 +18,42 @@ import { useServer } from '@/contexts/ServerContext';
 const Index = () => {
   const { toast } = useToast();
   const isMobile = useIsMobile();
-  const { getApiUrl, getHlsUrl, getWebrtcUrl, isConnected } = useServer();
+  const { getApiUrl, getHlsUrl, getWebrtcUrl, isConnected, getAuthHeaders } = useServer();
 
-  // 加载保存的配置或使用初始数据
-  const [cameras, setCameras] = useState<Camera[]>(() => {
-    const saved = loadConfigFromStorage();
-    return saved || initialCameras;
-  });
+  // 摄像头列表（从后端获取）
+  const [cameras, setCameras] = useState<Camera[]>([]);
+  const [isLoadingCameras, setIsLoadingCameras] = useState(false);
 
   const [selectedCamera, setSelectedCamera] = useState<Camera | undefined>();
   const [fullscreenCamera, setFullscreenCamera] = useState<Camera | undefined>();
-  const [configDialogOpen, setConfigDialogOpen] = useState(false);
-  const [editingCamera, setEditingCamera] = useState<Camera | undefined>();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [layout, setLayout] = useState<LayoutType>('auto');
   const [showPlayback, setShowPlayback] = useState(false);
   const [motionEvents, setMotionEvents] = useState<MotionEvent[]>(() => loadEventsFromStorage());
+  const [streamPassword, setStreamPassword] = useState<string>('');
+
+  // 获取流密码
+  useEffect(() => {
+    const fetchSettings = async () => {
+      if (!isConnected) return;
+      try {
+        const res = await fetch(getApiUrl('/api/settings'), {
+          headers: getAuthHeaders(),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.streamAuth && data.streamAuth.enabled) {
+            setStreamPassword(data.streamAuth.password || '');
+          } else {
+            setStreamPassword('');
+          }
+        }
+      } catch (e) {
+        console.error('Failed to fetch settings:', e);
+      }
+    };
+    fetchSettings();
+  }, [isConnected, getApiUrl, getAuthHeaders]);
 
   // 定期刷新移动事件列表
   useEffect(() => {
@@ -50,58 +65,88 @@ const Index = () => {
 
   const alertCount = motionEvents.length;
 
-  // 保存配置到本地存储
-  useEffect(() => {
-    saveConfigToStorage(cameras);
-  }, [cameras]);
+  // 从后端获取摄像头列表
+  const fetchCamerasFromBackend = useCallback(async () => {
+    if (!isConnected) return;
 
-  // 应用启动时自动注册所有已保存的摄像头流到 MediaMTX
-  useEffect(() => {
-    const registerAllStreams = async () => {
-      const registeredIds: string[] = [];
+    setIsLoadingCameras(true);
+    try {
+      const response = await fetch(getApiUrl('/api/streams'), {
+        headers: getAuthHeaders(),
+      });
 
-      for (const cam of cameras) {
-        if (['hls', 'flv', 'webrtc'].includes(cam.streamType || '') && cam.streamUrl) {
-          const streamId = cam.id.replace('cam-', '');
-          console.log(`[Startup] Registering stream: ${streamId}`);
-          const success = await addRtspStream(streamId, cam.streamUrl);
-          if (success) {
-            registeredIds.push(cam.id);
+      if (response.ok) {
+        const streams = await response.json();
+        console.log('[Backend] Fetched cameras:', streams);
+
+        // 将后端数据转换为前端 Camera 类型
+        const backendCameras: Camera[] = streams.map((s: any) => {
+          // 从 rtspUrl 解析 IP、端口等信息
+          let ipAddress = '';
+          let port = 554;
+          let username = '';
+          let password = '';
+          let rtspPath = '/live';
+
+          if (s.rtspUrl) {
+            try {
+              const url = new URL(s.rtspUrl);
+              ipAddress = url.hostname;
+              port = parseInt(url.port) || 554;
+              username = url.username || '';
+              password = url.password || '';
+              rtspPath = url.pathname + url.search;
+            } catch (e) {
+              console.warn('Failed to parse rtspUrl:', s.rtspUrl);
+            }
           }
-        }
+
+          return {
+            id: s.id,
+            name: s.name || s.id,
+            deviceName: '',
+            ipAddress,
+            port,
+            username,
+            password,
+            mjpegPath: '/video',
+            rtspPath,
+            status: s.status === 'running' ? 'online' : 'offline',
+            isRecording: false,
+            hasAudio: true,
+            hasPTZ: false,
+            resolution: '1920x1080',
+            fps: 30,
+            bitrate: '0 Mbps',
+            lastSeen: new Date(s.startTime || Date.now()),
+            streamUrl: s.rtspUrl || '',
+            mjpegUrl: '',
+            hlsUrl: getHlsUrl(s.id),
+            webrtcUrl: getWebrtcUrl(s.id),
+            audioUrl: '',
+            ptzUrl: '',
+            streamType: 'webrtc' as const,
+            humanDetectionEnabled: false,
+          } as Camera;
+        });
+
+        setCameras(backendCameras);
+      } else {
+        console.error('[Backend] Failed to fetch cameras:', response.status);
       }
+    } catch (error) {
+      console.error('[Backend] Error fetching cameras:', error);
+    } finally {
+      setIsLoadingCameras(false);
+    }
+  }, [isConnected, getApiUrl, getAuthHeaders, getHlsUrl, getWebrtcUrl]);
 
-      // 注册完成后，触发摄像头状态更新以刷新播放器
-      if (registeredIds.length > 0) {
-        console.log(`[Startup] All streams registered, refreshing ${registeredIds.length} cameras`);
-        setCameras(prev => prev.map(cam => {
-          if (registeredIds.includes(cam.id)) {
-            return { ...cam, status: 'online' as const, lastSeen: new Date() };
-          }
-          return cam;
-        }));
-      }
-    };
-
-    // 延迟一点执行，等待 MediaMTX 启动完成
-    const timer = setTimeout(() => {
-      registerAllStreams();
-    }, 3000);
-
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // 只在组件挂载时执行一次
-
-  const handleAddDevice = () => {
-    setEditingCamera(undefined);
-    setConfigDialogOpen(true);
-    setMobileMenuOpen(false);
-  };
-
-  const handleEditDevice = (camera: Camera) => {
-    setEditingCamera(camera);
-    setConfigDialogOpen(true);
-  };
+  // 连接成功后自动获取摄像头列表
+  useEffect(() => {
+    if (isConnected) {
+      fetchCamerasFromBackend();
+    }
+  }, [isConnected, fetchCamerasFromBackend]);
 
   const handleToggleRecording = useCallback((cameraId: string) => {
     setCameras(prev => prev.map(cam => {
@@ -156,154 +201,6 @@ const Index = () => {
     });
   }, [cameras, toast]);
 
-  // 自动添加 RTSP 流到转码服务
-  const addRtspStream = async (streamId: string, rtspUrl: string) => {
-    try {
-      // 先尝试删除已存在的流
-      await fetch(getApiUrl(`/api/streams/${streamId}`), { method: 'DELETE' }).catch(() => { });
-
-      // 添加新流
-      const response = await fetch(getApiUrl('/api/streams'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: streamId, rtspUrl }),
-      });
-
-      if (response.ok) {
-        return true;
-      }
-      return false;
-    } catch (error) {
-      console.error('Failed to add RTSP stream:', error);
-      return false;
-    }
-  };
-
-  const handleSaveDevice = async (data: CameraFormValues) => {
-    // 构建带认证的 URL
-    const authPart = data.username ? `${data.username}${data.password ? ':' + data.password : ''}@` : '';
-    const rtspUrl = data.rtspPath
-      ? `rtsp://${authPart}${data.ipAddress}:${data.port}${data.rtspPath}`
-      : '';
-
-    if (editingCamera) {
-      const streamId = editingCamera.id.replace('cam-', '');
-      const hlsUrl = getHlsUrl(streamId);
-
-      // 如果是 HLS/FLV/WebRTC 流类型，自动添加 RTSP 流
-      if (['hls', 'flv', 'webrtc'].includes(data.streamType) && rtspUrl) {
-        const success = await addRtspStream(streamId, rtspUrl);
-        if (!success) {
-          toast({
-            title: '转码服务添加失败',
-            description: '请确保转码服务正在运行',
-            variant: 'destructive',
-          });
-        }
-      }
-
-      setCameras(prev => prev.map(cam => {
-        if (cam.id === editingCamera.id) {
-          return {
-            ...cam,
-            name: data.name,
-            deviceName: data.deviceName,
-            ipAddress: data.ipAddress,
-            port: data.port,
-            username: data.username,
-            password: data.password,
-            mjpegPath: data.mjpegPath,
-            rtspPath: data.rtspPath,
-            hasAudio: data.hasAudio,
-            resolution: data.resolution,
-            fps: data.fps,
-            status: 'online',
-            mjpegUrl: `http://${authPart}${data.ipAddress}:${data.port}${data.mjpegPath}`,
-            audioUrl: data.hasAudio ? `http://${authPart}${data.ipAddress}:${data.port}/audio.wav` : '',
-            streamUrl: rtspUrl || cam.streamUrl,
-            ptzUrl: `http://${authPart}${data.ipAddress}:${data.port}`,
-            streamType: data.streamType || 'mjpeg',
-            hlsUrl: data.streamType === 'hls' ? hlsUrl : undefined,
-            webrtcUrl: data.streamType === 'webrtc' ? getWebrtcUrl(streamId) : undefined,
-            humanDetectionEnabled: data.humanDetectionEnabled,
-          };
-        }
-        return cam;
-      }));
-
-      toast({
-        title: '设备已更新',
-        description: `${data.name} 的配置已保存`,
-      });
-    } else {
-      const camId = `cam-${Date.now()}`;
-      const streamId = camId.replace('cam-', '');
-      const hlsUrl = getHlsUrl(streamId);
-
-      // 如果是 HLS/FLV/WebRTC 流类型，自动添加 RTSP 流
-      if (['hls', 'flv', 'webrtc'].includes(data.streamType) && rtspUrl) {
-        const success = await addRtspStream(streamId, rtspUrl);
-        if (!success) {
-          toast({
-            title: '转码服务添加失败',
-            description: '请确保转码服务正在运行',
-            variant: 'destructive',
-          });
-        }
-      }
-
-      const newCamera: Camera = {
-        id: camId,
-        name: data.name,
-        deviceName: data.deviceName,
-        ipAddress: data.ipAddress,
-        port: data.port,
-        username: data.username,
-        password: data.password,
-        mjpegPath: data.mjpegPath,
-        rtspPath: data.rtspPath,
-        status: 'online',
-        isRecording: false,
-        hasAudio: data.hasAudio,
-        hasPTZ: true,
-        resolution: data.resolution,
-        fps: data.fps,
-        bitrate: '0 Mbps',
-        lastSeen: new Date(),
-        mjpegUrl: `http://${authPart}${data.ipAddress}:${data.port}${data.mjpegPath}`,
-        audioUrl: data.hasAudio ? `http://${authPart}${data.ipAddress}:${data.port}/audio.wav` : '',
-        streamUrl: rtspUrl,
-        ptzUrl: `http://${authPart}${data.ipAddress}:${data.port}`,
-        streamType: data.streamType || 'mjpeg',
-        hlsUrl: data.streamType === 'hls' ? hlsUrl : undefined,
-        webrtcUrl: data.streamType === 'webrtc' ? getWebrtcUrl(streamId) : undefined,
-        humanDetectionEnabled: data.humanDetectionEnabled,
-      };
-
-      setCameras(prev => [...prev, newCamera]);
-
-      toast({
-        title: '设备已添加',
-        description: `${data.name} 已添加到设备列表`,
-      });
-    }
-  };
-
-  const handleDeleteDevice = (cameraId: string) => {
-    const camera = cameras.find(c => c.id === cameraId);
-    setCameras(prev => prev.filter(cam => cam.id !== cameraId));
-
-    if (selectedCamera?.id === cameraId) {
-      setSelectedCamera(undefined);
-    }
-
-    toast({
-      title: '设备已删除',
-      description: camera ? `${camera.name} 已从列表中移除` : '设备已删除',
-      variant: 'destructive',
-    });
-  };
-
   const handleRotateCamera = (camera: Camera) => {
     const currentRotation = camera.rotation || 0;
     const nextRotation = (currentRotation + 90) % 360 as 0 | 90 | 180 | 270;
@@ -340,10 +237,6 @@ const Index = () => {
     memoryUsage: realStats?.memory.usedPercent ?? 0,
   };
 
-  const handleImportConfig = (importedCameras: Camera[]) => {
-    setCameras(importedCameras);
-  };
-
   return (
     <>
       {/* Video Playback Page */}
@@ -364,7 +257,6 @@ const Index = () => {
               }}
               onMenuClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               isMobileMenuOpen={mobileMenuOpen}
-              configManager={<ConfigManager />}
               onPlaybackClick={() => setShowPlayback(true)}
             />
 
@@ -375,9 +267,6 @@ const Index = () => {
                   cameras={cameras}
                   selectedCamera={selectedCamera}
                   onSelectCamera={setSelectedCamera}
-                  onAddDevice={handleAddDevice}
-                  onEditDevice={handleEditDevice}
-                  onDeleteDevice={handleDeleteDevice}
                 />
               </div>
 
@@ -388,9 +277,6 @@ const Index = () => {
                     cameras={cameras}
                     selectedCamera={selectedCamera}
                     onSelectCamera={setSelectedCamera}
-                    onAddDevice={handleAddDevice}
-                    onEditDevice={handleEditDevice}
-                    onDeleteDevice={handleDeleteDevice}
                     isMobile
                     onClose={() => setMobileMenuOpen(false)}
                   />
@@ -407,9 +293,8 @@ const Index = () => {
                   </div>
                 </div>
 
-                {/* Camera Grid & Event Log */}
+                {/* Camera Grid */}
                 <div className="flex-1 flex overflow-hidden relative">
-                  {/* Camera Grid */}
                   <div className="flex-1 p-2 md:p-4 overflow-auto pb-20 md:pb-4">
                     {cameras.length > 0 ? (
                       <div className={`camera-grid ${layout === 'auto' ? '' : `camera-grid-${layout}`}`}>
@@ -421,8 +306,8 @@ const Index = () => {
                             onSelect={setSelectedCamera}
                             onFullscreen={setFullscreenCamera}
                             onToggleRecording={handleToggleRecording}
-                            onEditDevice={handleEditDevice}
                             onRotate={handleRotateCamera}
+                            streamPassword={streamPassword}
                           />
                         ))}
                       </div>
@@ -434,13 +319,7 @@ const Index = () => {
                           </svg>
                         </div>
                         <p className="text-base md:text-lg font-medium mb-2">暂无摄像头</p>
-                        <p className="text-sm mb-4 text-center">添加您的第一个 IP Webcam 设备</p>
-                        <button
-                          onClick={handleAddDevice}
-                          className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-                        >
-                          添加设备
-                        </button>
+                        <p className="text-sm text-center">请在后端管理界面添加摄像头</p>
                       </div>
                     )}
                   </div>
@@ -456,17 +335,9 @@ const Index = () => {
                 onClose={() => setFullscreenCamera(undefined)}
                 onNavigate={setFullscreenCamera}
                 onToggleRecording={handleToggleRecording}
+                streamPassword={streamPassword}
               />
             )}
-
-            {/* Device Config Dialog */}
-            <DeviceConfigDialog
-              open={configDialogOpen}
-              onOpenChange={setConfigDialogOpen}
-              camera={editingCamera}
-              onSave={handleSaveDevice}
-              onDelete={handleDeleteDevice}
-            />
           </div>
         </HumanDetectionProvider>
       )}
@@ -475,4 +346,3 @@ const Index = () => {
 };
 
 export default Index;
-

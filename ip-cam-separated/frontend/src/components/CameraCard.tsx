@@ -9,6 +9,7 @@ import { WebrtcPlayer, WebrtcPlayerRef } from '@/components/WebrtcPlayer';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import { VolumeControl } from '@/components/VolumeControl';
 import { RecordingBadge } from '@/components/RecordingControl';
+import { VideoRecorder } from '@/components/VideoRecorder';
 import { useHumanDetector } from '@/hooks/useHumanDetector';
 import { saveScreenshot } from '@/utils/fileSaver';
 import { toast } from 'sonner';
@@ -33,18 +34,19 @@ interface CameraCardProps {
   onToggleRecording?: (cameraId: string) => void;
   onEditDevice?: (camera: Camera) => void;
   onRotate?: (camera: Camera) => void;
+  streamPassword?: string;
 }
 
-export function CameraCard({ camera, isSelected, onSelect, onFullscreen, onToggleRecording, onEditDevice, onRotate }: CameraCardProps) {
+export function CameraCard({ camera, isSelected, onSelect, onFullscreen, onToggleRecording, onEditDevice, onRotate, streamPassword }: CameraCardProps) {
   const webrtcRef = useRef<WebrtcPlayerRef>(null);
   const hlsRef = useRef<HlsPlayerRef>(null);
   const flvRef = useRef<FlvPlayerRef>(null);
   const mjpegRef = useRef<MjpegPlayerRef>(null);
   const [isCapturing, setIsCapturing] = useState(false);
 
-  // 创建 video ref 用于人形检测
-  const videoRef = useMemo(() => ({
-    get current(): HTMLVideoElement | null {
+  // 创建 media ref 用于录像和人形检测
+  const mediaRef = useMemo(() => ({
+    get current(): HTMLImageElement | HTMLVideoElement | null {
       if (camera.streamType === 'hls') {
         return hlsRef.current?.getVideoElement() || null;
       }
@@ -54,7 +56,7 @@ export function CameraCard({ camera, isSelected, onSelect, onFullscreen, onToggl
       if (camera.streamType === 'webrtc') {
         return webrtcRef.current?.getVideoElement() || null;
       }
-      return null; // MJPEG 是图片，不支持
+      return mjpegRef.current?.getImageElement() || null;
     }
   }), [camera.streamType]);
 
@@ -73,7 +75,7 @@ export function CameraCard({ camera, isSelected, onSelect, onFullscreen, onToggl
   };
 
   // 直接使用 useHumanDetector hook
-  const humanDetector = useHumanDetector(videoRef, camera.name, camera.id, {
+  const humanDetector = useHumanDetector(mediaRef, camera.name, camera.id, {
     detectionRegion: camera.humanDetectionRegion
   });
 
@@ -92,7 +94,7 @@ export function CameraCard({ camera, isSelected, onSelect, onFullscreen, onToggl
     // 配置从关闭变为开启：自动启动检测
     if (isEnabled && !wasEnabled && camera.status === 'online' && !humanDetector.isDetecting) {
       const timer = setTimeout(() => {
-        if (videoRef.current && !humanDetector.isDetecting) {
+        if (mediaRef.current && !humanDetector.isDetecting) {
           console.log(`[CameraCard] Auto-starting detection for ${camera.name} (config enabled)`);
           humanDetector.startDetection();
         }
@@ -285,21 +287,8 @@ export function CameraCard({ camera, isSelected, onSelect, onFullscreen, onToggl
               <CameraIcon className="w-3.5 h-3.5" />
             </Button>
 
-            {/* Recording Button */}
-            <Button
-              variant={camera.isRecording ? "destructive" : "ghost"}
-              size="icon"
-              className="h-7 w-7"
-              onClick={handleRecordingClick}
-              disabled={camera.status !== 'online'}
-              title={camera.isRecording ? "停止录像" : "开始录像"}
-            >
-              {camera.isRecording ? (
-                <Square className="w-3.5 h-3.5" />
-              ) : (
-                <Circle className="w-3.5 h-3.5" />
-              )}
-            </Button>
+            {/* Recording Button - Replaced with VideoRecorder */}
+            <VideoRecorder camera={camera} mediaRef={mediaRef} />
 
             {/* Rotation Button */}
             <Button

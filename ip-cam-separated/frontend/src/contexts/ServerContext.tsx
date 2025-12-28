@@ -1,37 +1,53 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
-// 服务器配置接口
+// 简化的服务器配置接口（用户只需填写这些）
 export interface ServerConfig {
   host: string;
   apiPort: number;
-  rtspPort: number;
-  hlsPort: number;
-  webrtcPort: number;
+  password?: string; // 可选密码
+}
+
+// 完整的服务器信息（从后端获取）
+export interface ServerInfo {
+  name: string;
+  version: string;
+  authRequired: boolean;
+  streams: number;
+  ports: {
+    api: number;
+    rtsp: number;
+    hls: number;
+    webrtc: number;
+  };
 }
 
 // 默认配置
 const DEFAULT_CONFIG: ServerConfig = {
   host: 'localhost',
-  apiPort: 3001,
-  rtspPort: 8554,
-  hlsPort: 8888,
-  webrtcPort: 8889,
+  apiPort: 3002,
+  password: '',
 };
 
 const STORAGE_KEY = 'ip_cam_server_config';
+const TOKEN_KEY = 'ip_cam_auth_token';
 
 // 服务器上下文接口
 interface ServerContextType {
   config: ServerConfig;
   setConfig: (config: ServerConfig) => void;
+  serverInfo: ServerInfo | null;
   isConnected: boolean;
   isConnecting: boolean;
   connectionError: string | null;
-  testConnection: () => Promise<boolean>;
+  authRequired: boolean;
+  token: string | null;
+  connect: (password?: string) => Promise<boolean>;
+  disconnect: () => void;
   getApiUrl: (path?: string) => string;
   getHlsUrl: (streamId: string) => string;
   getWebrtcUrl: (streamId: string) => string;
   getRtspUrl: (streamId: string) => string;
+  getAuthHeaders: () => HeadersInit;
 }
 
 const ServerContext = createContext<ServerContextType | undefined>(undefined);
@@ -49,9 +65,17 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
     return DEFAULT_CONFIG;
   });
 
+  const [serverInfo, setServerInfo] = useState<ServerInfo | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(TOKEN_KEY);
+    } catch {
+      return null;
+    }
+  });
 
   // 保存配置
   const setConfig = useCallback((newConfig: ServerConfig) => {
@@ -63,7 +87,22 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
     }
     // 配置变更后重置连接状态
     setIsConnected(false);
+    setServerInfo(null);
     setConnectionError(null);
+  }, []);
+
+  // 保存 Token
+  const saveToken = useCallback((newToken: string | null) => {
+    setToken(newToken);
+    try {
+      if (newToken) {
+        localStorage.setItem(TOKEN_KEY, newToken);
+      } else {
+        localStorage.removeItem(TOKEN_KEY);
+      }
+    } catch (e) {
+      console.error('Failed to save token:', e);
+    }
   }, []);
 
   // 获取 API URL
@@ -72,43 +111,104 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
     return path ? `${base}${path.startsWith('/') ? path : '/' + path}` : base;
   }, [config.host, config.apiPort]);
 
-  // 获取 HLS URL
-  const getHlsUrl = useCallback((streamId: string) => {
-    return `http://${config.host}:${config.hlsPort}/${streamId}/index.m3u8`;
-  }, [config.host, config.hlsPort]);
+  // 获取认证头
+  const getAuthHeaders = useCallback((): HeadersInit => {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    return headers;
+  }, [token]);
 
-  // 获取 WebRTC URL
+  // 获取 HLS URL（使用从服务器获取的端口）
+  const getHlsUrl = useCallback((streamId: string) => {
+    const port = serverInfo?.ports.hls || 8888;
+    return `http://${config.host}:${port}/${streamId}/index.m3u8`;
+  }, [config.host, serverInfo]);
+
+  // 获取 WebRTC URL (WHEP 接口)
   const getWebrtcUrl = useCallback((streamId: string) => {
-    return `http://${config.host}:${config.webrtcPort}/${streamId}`;
-  }, [config.host, config.webrtcPort]);
+    const port = serverInfo?.ports.webrtc || 8889;
+    return `http://${config.host}:${port}/${streamId}/whep`;
+  }, [config.host, serverInfo]);
 
   // 获取 RTSP URL
   const getRtspUrl = useCallback((streamId: string) => {
-    return `rtsp://${config.host}:${config.rtspPort}/${streamId}`;
-  }, [config.host, config.rtspPort]);
+    const port = serverInfo?.ports.rtsp || 8554;
+    return `rtsp://${config.host}:${port}/${streamId}`;
+  }, [config.host, serverInfo]);
 
-  // 测试连接
-  const testConnection = useCallback(async (): Promise<boolean> => {
+  // 连接服务器
+  const connect = useCallback(async (password?: string): Promise<boolean> => {
     setIsConnecting(true);
     setConnectionError(null);
 
     try {
-      const response = await fetch(getApiUrl('/api/server-info'), {
+      // 1. 获取服务器信息
+      const infoResponse = await fetch(getApiUrl('/api/server-info'), {
         method: 'GET',
-        signal: AbortSignal.timeout(5000), // 5秒超时
+        signal: AbortSignal.timeout(5000),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        console.log('Server info:', data);
-        setIsConnected(true);
-        setConnectionError(null);
-        return true;
-      } else {
-        throw new Error(`HTTP ${response.status}`);
+      if (!infoResponse.ok) {
+        throw new Error(`HTTP ${infoResponse.status}`);
       }
+
+      const info: ServerInfo = await infoResponse.json();
+      console.log('Server info:', info);
+      setServerInfo(info);
+
+      // 2. 如果需要认证，进行登录
+      if (info.authRequired) {
+        if (!password && !token) {
+          setConnectionError('需要密码');
+          setIsConnecting(false);
+          return false;
+        }
+
+        // 如果有新密码，进行登录
+        if (password) {
+          const loginResponse = await fetch(getApiUrl('/api/login'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password }),
+            signal: AbortSignal.timeout(5000),
+          });
+
+          if (!loginResponse.ok) {
+            const error = await loginResponse.json();
+            throw new Error(error.error || '认证失败');
+          }
+
+          const loginData = await loginResponse.json();
+          if (loginData.token) {
+            saveToken(loginData.token);
+          }
+        }
+        // 如果没有新密码但有旧 token，验证 token 是否有效
+        else if (token) {
+          const testResponse = await fetch(getApiUrl('/api/streams'), {
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${token}` },
+            signal: AbortSignal.timeout(5000),
+          });
+
+          if (!testResponse.ok) {
+            saveToken(null);
+            setConnectionError('Token 已过期，请重新输入密码');
+            setIsConnecting(false);
+            return false;
+          }
+        }
+      }
+
+      setIsConnected(true);
+      setConnectionError(null);
+      return true;
     } catch (e: any) {
-      console.error('Connection test failed:', e);
+      console.error('Connection failed:', e);
       setIsConnected(false);
       if (e.name === 'TimeoutError') {
         setConnectionError('连接超时');
@@ -121,17 +221,27 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsConnecting(false);
     }
-  }, [getApiUrl]);
+  }, [getApiUrl, token, saveToken]);
 
-  // 组件挂载时自动测试连接
+  // 断开连接
+  const disconnect = useCallback(() => {
+    setIsConnected(false);
+    setServerInfo(null);
+    saveToken(null);
+  }, [saveToken]);
+
+  // 是否需要认证
+  const authRequired = serverInfo?.authRequired ?? false;
+
+  // 组件挂载时自动连接
   useEffect(() => {
-    testConnection();
+    connect();
   }, []);
 
-  // 配置变更时重新测试连接
+  // 配置变更时重新连接
   useEffect(() => {
     const timer = setTimeout(() => {
-      testConnection();
+      connect();
     }, 500);
     return () => clearTimeout(timer);
   }, [config.host, config.apiPort]);
@@ -141,14 +251,19 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
       value={{
         config,
         setConfig,
+        serverInfo,
         isConnected,
         isConnecting,
         connectionError,
-        testConnection,
+        authRequired,
+        token,
+        connect,
+        disconnect,
         getApiUrl,
         getHlsUrl,
         getWebrtcUrl,
         getRtspUrl,
+        getAuthHeaders,
       }}
     >
       {children}
