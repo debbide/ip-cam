@@ -1,0 +1,24 @@
+services:
+  ip-cam-backend:
+    build: .
+    container_name: ip-cam-backend
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-3001}:3001"      # API
+      - "${RTSP_PORT:-8554}:8554"     # RTSP
+      - "${HLS_PORT:-8888}:8888"      # HLS
+      - "${WEBRTC_PORT:-8889}:8889"   # WebRTC (WHEP)
+      - "8189:8189/udp"               # WebRTC ICE/STUN
+    environment:
+      - TZ=Asia/Shanghai
+      - MEDIAMTX_API=http://127.0.0.1:9997
+    volumes:
+      - streams-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  streams-data:

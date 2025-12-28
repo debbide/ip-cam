@@ -1,0 +1,69 @@
+# MediaMTX 配置 - 后端服务专用
+
+###############################################
+# 通用设置
+###############################################
+
+logLevel: info
+logDestinations: [stdout]
+
+###############################################
+# API 设置
+###############################################
+
+api: yes
+apiAddress: :9997
+
+###############################################
+# RTSP 设置
+###############################################
+
+rtspAddress: :8554
+protocols: [tcp, udp]
+rtspTransport: tcp
+
+###############################################
+# HLS 设置
+###############################################
+
+hlsAddress: :8888
+hlsAlwaysRemux: no
+hlsVariant: mpegts
+hlsSegmentCount: 3
+hlsSegmentDuration: 1s
+hlsPartDuration: 200ms
+hlsSegmentMaxSize: 50M
+hlsAllowOrigin: '*'
+
+###############################################
+# WebRTC 设置
+###############################################
+
+webrtcAddress: :8889
+webrtcLocalUDPAddress: :8189
+webrtcIPsFromInterfaces: yes
+webrtcIPsFromInterfacesList: []
+webrtcAllowOrigin: '*'
+
+###############################################
+# 认证设置
+###############################################
+
+authMethod: internal
+authInternalUsers:
+  - user: admin
+    pass: admin
+    permissions:
+      - action: api
+      - action: read
+      - action: publish
+        path: ''
+      - action: playback
+
+###############################################
+# 路径设置
+###############################################
+
+paths:
+  all_others:
+    source: publisher
