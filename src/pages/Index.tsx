@@ -26,7 +26,21 @@ const Index = () => {
   // 加载保存的配置或使用初始数据
   const [cameras, setCameras] = useState<Camera[]>(() => {
     const saved = loadConfigFromStorage();
-    return saved || initialCameras;
+    if (saved) {
+      // 自动迁移旧的 webrtcUrl 格式（直接访问 8889 端口 → 代理路径）
+      return saved.map(cam => {
+        if (cam.webrtcUrl && cam.webrtcUrl.includes(':8889/')) {
+          // 从 http://host:8889/{streamId}/whep 或 http://host:8889/{streamId} 提取 streamId
+          const match = cam.webrtcUrl.match(/:8889\/([^/]+)/);
+          if (match) {
+            const streamId = match[1];
+            return { ...cam, webrtcUrl: `/whep/${streamId}` };
+          }
+        }
+        return cam;
+      });
+    }
+    return initialCameras;
   });
 
   const [selectedCamera, setSelectedCamera] = useState<Camera | undefined>();
