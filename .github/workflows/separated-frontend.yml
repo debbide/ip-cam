@@ -46,12 +46,12 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v1.0.20
-          name: "IP Cam Streamer v1.0.20"
+          tag_name: v${{ steps.get_version.outputs.version }}
+          name: "IP Cam Streamer v${{ steps.get_version.outputs.version }}"
           body: |
-            ## Client v${{ steps.get_version.outputs.version }}
+            ## 前后分离版客户端 v${{ steps.get_version.outputs.version }}
             
-            Windows client for separated version.
+            Windows 客户端（需配合后端 Docker 镜像使用）
           files: ip-cam-separated/frontend/dist-electron/*.exe
           draft: false
           prerelease: false
