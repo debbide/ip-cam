@@ -28,8 +28,8 @@ export const WebrtcPlayer = forwardRef<WebrtcPlayerRef, WebrtcPlayerProps>(({ ur
     const [retryCount, setRetryCount] = useState(0);
     const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
     const retryCountRef = useRef(0); // 用于闭包中获取最新值
-    const maxRetries = 30; // 最多重试30次，每次2秒，共60秒
-    const retryInterval = 2000; // 2秒重试一次
+    // 无限重试：前 10 次每 2 秒，之后每 5 秒
+    const getRetryInterval = (count: number) => count < 10 ? 2000 : 5000;
     const [debugInfo, setDebugInfo] = useState({
         iceConnection: 'new',
         iceGathering: 'new',
@@ -92,13 +92,13 @@ export const WebrtcPlayer = forwardRef<WebrtcPlayerRef, WebrtcPlayerProps>(({ ur
         streamRef.current = null;
     };
 
-    // 自动重试函数
+    // 自动重试函数（无限重试）
     const scheduleRetry = () => {
-        if (retryCountRef.current < maxRetries && isOnline) {
-            // console.log(`[WebRTC] 将在 ${retryInterval / 1000} 秒后重试 (${retryCountRef.current + 1}/${maxRetries})`);
+        if (isOnline) {
+            const interval = getRetryInterval(retryCountRef.current);
             retryTimerRef.current = setTimeout(() => {
                 setRetryCount(prev => prev + 1);
-            }, retryInterval);
+            }, interval);
         }
     };
 
@@ -356,7 +356,7 @@ export const WebrtcPlayer = forwardRef<WebrtcPlayerRef, WebrtcPlayerProps>(({ ur
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-secondary/80 z-10">
                     <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3" />
                     <span className="text-primary text-sm font-mono">
-                        {retryCount > 0 ? `重试中 (${retryCount}/${maxRetries})` : '连接中...'}
+                        {retryCount > 0 ? `连接中 (第 ${retryCount} 次)` : '连接中...'}
                     </span>
                     <span className="text-muted-foreground text-xs font-mono mt-1">WebRTC (WHEP)</span>
                 </div>
@@ -370,27 +370,13 @@ export const WebrtcPlayer = forwardRef<WebrtcPlayerRef, WebrtcPlayerProps>(({ ur
                             <WifiOff className="w-10 h-10 text-destructive/60 mb-3" />
                             <span className="text-destructive/80 text-sm font-mono">设备离线</span>
                         </>
-                    ) : retryCount < maxRetries ? (
+                    ) : (
                         <>
                             <div className="w-10 h-10 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mb-3" />
                             <span className="text-orange-500 text-sm font-mono">等待流就绪...</span>
                             <span className="text-muted-foreground text-xs font-mono mt-1">
-                                自动重试 ({retryCount}/{maxRetries})
+                                自动重连中 (第 {retryCount} 次)
                             </span>
-                        </>
-                    ) : (
-                        <>
-                            <VideoOff className="w-10 h-10 text-muted-foreground/60 mb-3" />
-                            <span className="text-muted-foreground text-sm font-mono mb-3">连接失败</span>
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={handleRetry}
-                                className="gap-2 text-xs"
-                            >
-                                <RefreshCw className="w-3 h-3" />
-                                重试连接
-                            </Button>
                         </>
                     )}
                 </div>
