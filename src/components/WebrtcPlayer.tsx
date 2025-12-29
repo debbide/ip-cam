@@ -127,8 +127,10 @@ export const WebrtcPlayer = forwardRef<WebrtcPlayerRef, WebrtcPlayerProps>(({ ur
             }
         }
 
-        // 自动补全 /whep 后缀（兼容旧配置）
-        if (!whepUrl.endsWith('/whep')) {
+        // 检查 URL 格式并自动补全 /whep 后缀（兼容旧配置）
+        // 新格式: /whep/{streamId} - 不需要补全
+        // 旧格式: http://host:8889/{streamId} - 需要补全 /whep
+        if (!whepUrl.includes('/whep')) {
             whepUrl = whepUrl.replace(/\/?$/, '/whep');
         }
 
