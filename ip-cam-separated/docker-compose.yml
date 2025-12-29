@@ -1,0 +1,14 @@
+version: '3.8'
+
+services:
+  ip-cam-backend:
+    image: ghcr.io/debbide/ip-cam-backend:latest
+    container_name: ip-cam-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=production
+      - TZ=Asia/Shanghai
