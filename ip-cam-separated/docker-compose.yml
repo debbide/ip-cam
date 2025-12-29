@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   ip-cam-backend:
     image: ghcr.io/debbide/ip-cam-backend:latest
