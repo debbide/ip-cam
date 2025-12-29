@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Bell, Send, CheckCircle2, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import * as PlatformAPI from '@/utils/platform';
 
 interface NotificationConfig {
     enabled: boolean;
@@ -34,11 +35,11 @@ export function NotificationSettings() {
     }, []);
 
     const loadConfig = async () => {
-        if (!window.electronAPI) return;
+        if (PlatformAPI.isWeb()) return;
         try {
-            const result = await (window.electronAPI as any).getNotificationConfig?.();
+            const result = await PlatformAPI.getNotificationConfig();
             if (result) {
-                setConfig(result);
+                setConfig(result as NotificationConfig);
             }
         } catch (error) {
             console.error('Failed to load notification config:', error);
@@ -46,9 +47,9 @@ export function NotificationSettings() {
     };
 
     const handleSave = async () => {
-        if (!window.electronAPI) return;
+        if (PlatformAPI.isWeb()) return;
         try {
-            await (window.electronAPI as any).updateNotificationConfig?.(config);
+            await PlatformAPI.updateNotificationConfig(config);
             toast.success('通知设置已保存');
             setHasChanges(false);
         } catch (error) {
@@ -57,10 +58,10 @@ export function NotificationSettings() {
     };
 
     const handleTest = async () => {
-        if (!window.electronAPI) return;
+        if (PlatformAPI.isWeb()) return;
         setTesting(true);
         try {
-            const result = await (window.electronAPI as any).sendTestNotification?.();
+            const result = await PlatformAPI.sendTestNotification();
             if (result?.success) {
                 toast.success('测试通知发送成功！', {
                     icon: <CheckCircle2 className="w-4 h-4 text-green-500" />

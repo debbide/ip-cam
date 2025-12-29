@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import * as PlatformAPI from '@/utils/platform';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -61,15 +62,15 @@ export function VideoPlayback({ onBack }: VideoPlaybackProps) {
     const videoRef = useRef<HTMLVideoElement>(null);
 
     const loadFiles = async () => {
-        if (!window.electronAPI) {
-            toast.error('此功能仅在 Electron 客户端可用');
+        if (PlatformAPI.isWeb()) {
+            toast.error('此功能仅在原生客户端可用');
             setLoading(false);
             return;
         }
 
         setLoading(true);
         try {
-            const result = await window.electronAPI.listSavedFiles();
+            const result = await PlatformAPI.listSavedFiles();
             if (result.success && result.files) {
                 setFiles(result.files);
             } else {
@@ -87,10 +88,10 @@ export function VideoPlayback({ onBack }: VideoPlaybackProps) {
     }, []);
 
     const handlePreview = async (file: SavedFile) => {
-        if (!window.electronAPI) return;
+        if (PlatformAPI.isWeb()) return;
 
         try {
-            const result = await window.electronAPI.getFileUrl(file.path);
+            const result = await PlatformAPI.getFileUrl(file.path);
             if (result.success && result.url) {
                 setPreviewUrl(result.url);
                 setSelectedFile(file);
@@ -103,10 +104,10 @@ export function VideoPlayback({ onBack }: VideoPlaybackProps) {
     };
 
     const handleDelete = async () => {
-        if (!deleteTarget || !window.electronAPI) return;
+        if (!deleteTarget || PlatformAPI.isWeb()) return;
 
         try {
-            const result = await window.electronAPI.deleteFile(deleteTarget.path);
+            const result = await PlatformAPI.deleteFile(deleteTarget.path);
             if (result.success) {
                 toast.success('文件已删除');
                 setDeleteTarget(null);
@@ -255,7 +256,7 @@ export function VideoPlayback({ onBack }: VideoPlaybackProps) {
                         variant="outline"
                         size="sm"
                         className="gap-2"
-                        onClick={() => window.electronAPI?.openSaveFolder()}
+                        onClick={() => PlatformAPI.openSaveFolder()}
                     >
                         <FolderOpen className="w-4 h-4" />
                         打开文件夹

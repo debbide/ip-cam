@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Video, Square, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Circle } from 'lucide-react';
+import * as PlatformAPI from '@/utils/platform';
 
 interface VideoRecorderProps {
   camera: Camera;
@@ -106,13 +107,13 @@ export function VideoRecorder({ camera, mediaRef }: VideoRecorderProps) {
 
         const filename = `${camera.name}-${new Date().toISOString().replace(/[:.]/g, '-')}.webm`;
 
-        // 尝试使用 Electron API 保存到录像文件夹
-        if (window.electronAPI) {
+        // 使用平台抽象层保存到录像文件夹
+        if (!PlatformAPI.isWeb()) {
           try {
             const reader = new FileReader();
             reader.onload = async () => {
               const dataUrl = reader.result as string;
-              const result = await window.electronAPI.saveFile(dataUrl, filename, '录像');
+              const result = await PlatformAPI.saveFile(dataUrl, filename, '录像');
               if (result.success) {
                 toast.success(`录像已保存 (${(blob.size / 1024).toFixed(1)} KB)`, { description: result.path });
               } else {

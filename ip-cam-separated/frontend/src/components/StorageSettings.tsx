@@ -7,6 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { HardDrive, AlertTriangle, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import * as PlatformAPI from '@/utils/platform';
 
 export function StorageSettings() {
     const [loading, setLoading] = useState(true);
@@ -19,10 +20,10 @@ export function StorageSettings() {
     const [hasChanges, setHasChanges] = useState(false);
 
     const loadStats = async () => {
-        if (!window.electronAPI) return;
+        if (PlatformAPI.isWeb()) return;
         try {
             setLoading(true);
-            const result = await window.electronAPI.getStorageStats();
+            const result = await PlatformAPI.getStorageStats();
             setStats(result);
             setHasChanges(false);
         } catch (error) {
@@ -38,9 +39,9 @@ export function StorageSettings() {
     }, []);
 
     const handleSave = async () => {
-        if (!window.electronAPI) return;
+        if (PlatformAPI.isWeb()) return;
         try {
-            await window.electronAPI.updateStorageSettings({
+            await PlatformAPI.updateStorageSettings({
                 enabled: stats.enabled,
                 maxSizeGB: stats.quotaGB
             });
