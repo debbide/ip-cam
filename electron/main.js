@@ -82,10 +82,7 @@ logToFile(`RESOURCES_PATH: ${RESOURCES_PATH}`);
 process.env.RESOURCES_PATH = RESOURCES_PATH;
 
 const MEDIAMTX_PATH = path.join(RESOURCES_PATH, 'bin/mediamtx.exe');
-// 开发环境使用 bin/mediamtx.yml，打包后使用 mediamtx.unified.yml
-const MEDIAMTX_CONFIG = isDev
-    ? path.join(RESOURCES_PATH, 'bin/mediamtx.yml')
-    : path.join(RESOURCES_PATH, 'mediamtx.unified.yml');
+const MEDIAMTX_CONFIG = path.join(RESOURCES_PATH, 'mediamtx.unified.yml');
 
 logToFile(`MEDIAMTX_PATH: ${MEDIAMTX_PATH}`);
 logToFile(`MEDIAMTX_CONFIG: ${MEDIAMTX_CONFIG}`);
