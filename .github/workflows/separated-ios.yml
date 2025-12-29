@@ -45,9 +45,16 @@ jobs:
         run: |
           npx cap add ios
           npx cap sync ios
-          # 显示 iOS 目录结构
-          echo "iOS directory structure:"
-          ls -la ios/App/
+
+      - name: Install CocoaPods
+        working-directory: ip-cam-separated/frontend/ios/App
+        run: |
+          echo "Current directory contents:"
+          ls -la
+          echo "Installing CocoaPods..."
+          pod install --repo-update
+          echo "After pod install:"
+          ls -la
 
       - name: Configure iOS for HTTP connections
         working-directory: ip-cam-separated/frontend/ios/App/App
@@ -121,4 +128,3 @@ jobs:
           append_body: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-# iOS Build trigger 2025年12月29日 23:04:45
