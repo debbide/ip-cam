@@ -97,10 +97,8 @@ export function CameraControlPanel({
         if (camera.streamType === 'flv' && camera.streamUrl) {
             return <FlvPlayer ref={flvRef} url={camera.streamUrl} isOnline={camera.status === 'online'} />;
         }
-        if (camera.streamType === 'webrtc') {
-            const streamId = camera.id.replace('cam-', '');
-            const webrtcUrl = `/whep/${streamId}`;
-            return <WebrtcPlayer ref={webrtcRef} url={webrtcUrl} isOnline={camera.status === 'online'} />;
+        if (camera.streamType === 'webrtc' && camera.webrtcUrl) {
+            return <WebrtcPlayer ref={webrtcRef} url={camera.webrtcUrl} isOnline={camera.status === 'online'} />;
         }
         return <MjpegPlayer ref={mjpegRef} url={camera.mjpegUrl} isOnline={camera.status === 'online'} />;
     };

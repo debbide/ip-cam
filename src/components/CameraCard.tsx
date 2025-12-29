@@ -185,14 +185,11 @@ export function CameraCard({ camera, isSelected, onSelect, onFullscreen, onToggl
         />
       );
     }
-    if (camera.streamType === 'webrtc') {
-      const streamId = camera.id.replace('cam-', '');
-      // Use proxy path /whep/streamId
-      const webrtcUrl = `/whep/${streamId}`;
+    if (camera.streamType === 'webrtc' && camera.webrtcUrl) {
       return (
         <WebrtcPlayer
           ref={webrtcRef}
-          url={webrtcUrl}
+          url={camera.webrtcUrl}
           isOnline={camera.status === 'online'}
           rotation={camera.rotation || 0}
         />
