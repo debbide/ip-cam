@@ -1,12 +1,18 @@
-version: '3.8'
-
 services:
   ip-cam-backend:
     image: ghcr.io/debbide/ip-cam-backend:latest
     container_name: ip-cam-backend
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3001:3001" # API Server
+      - "8554:8554" # RTSP TCP
+      - "8000:8000/udp" # RTSP UDP/RTP
+      - "8001:8001/udp" # RTSP UDP/RTCP
+      - "1935:1935" # RTMP
+      - "8888:8888" # HLS
+      - "8989:8989" # WebRTC HTTP
+      - "8289:8289/udp" # WebRTC ICE/UDP
+      - "8890:8890/udp" # SRT
     volumes:
       - ./data:/app/data
     environment:
