@@ -164,12 +164,13 @@ export function FullscreenViewer({ camera, cameras, onClose, onNavigate, onToggl
               url={camera.streamUrl}
               isOnline={camera.status === 'online'}
             />
-          ) : camera.streamType === 'webrtc' ? (
+          ) : camera.streamType === 'webrtc' && camera.webrtcUrl ? (
             <WebrtcPlayer
               ref={webrtcRef}
-              url={`/whep/${camera.id.replace('cam-', '')}`}
+              url={camera.webrtcUrl}
               isOnline={camera.status === 'online'}
               isFullscreen={true}
+              password={streamPassword}
             />
           ) : (
             <MjpegPlayer
