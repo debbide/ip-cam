@@ -403,6 +403,8 @@ async function startStream(streamId, rtspUrl, name = '') {
                 source: 'publisher',
                 runOnDemand: `ffmpeg -hide_banner -loglevel error -rtsp_transport tcp -i ${ffmpegInput} -c:v copy -c:a libopus -f rtsp ${ffmpegOutput}`,
                 runOnDemandRestart: true,
+                runOnDemandStartTimeout: '30s',  // 等待首帧的超时时间
+                runOnDemandCloseAfter: '5s',     // 无读者后保持流的时间
             })
         });
 
