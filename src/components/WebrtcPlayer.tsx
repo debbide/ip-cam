@@ -92,13 +92,14 @@ export const WebrtcPlayer = forwardRef<WebrtcPlayerRef, WebrtcPlayerProps>(({ ur
         streamRef.current = null;
     };
 
-    // 自动重试函数
+    // 自动重试函数 - 无限重试，断连后不需要重启客户端
     const scheduleRetry = () => {
-        if (retryCountRef.current < maxRetries && isOnline) {
-            // console.log(`[WebRTC] 将在 ${retryInterval / 1000} 秒后重试 (${retryCountRef.current + 1}/${maxRetries})`);
+        if (isOnline) {
+            // 前10次每2秒，之后每5秒
+            const interval = retryCountRef.current < 10 ? retryInterval : 5000;
             retryTimerRef.current = setTimeout(() => {
                 setRetryCount(prev => prev + 1);
-            }, retryInterval);
+            }, interval);
         }
     };
 

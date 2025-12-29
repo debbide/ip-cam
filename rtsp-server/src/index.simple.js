@@ -22,10 +22,44 @@ const STATIC_DIR = process.env.STATIC_DIR || path.join(__dirname, '../../public'
 const HLS_DIR = process.env.HLS_OUTPUT_DIR || '/var/hls';
 
 // FFmpeg 路径 (开发环境和打包后的路径)
-// 注意：必须在函数内部获取 process.env.RESOURCES_PATH，因为在模块加载时该环境变量可能尚未设置（被 main.js 设置）
+// 注意：在 Electron 打包环境中，__dirname 指向 app.asar 内部，无法执行可执行文件
+// 必须使用 process.resourcesPath 或 process.env.RESOURCES_PATH 获取正确的 resources 目录
 function getFFmpegPath() {
-    const RESOURCES_PATH = process.env.RESOURCES_PATH || path.join(__dirname, '../..');
-    return path.join(RESOURCES_PATH, 'bin/ffmpeg.exe');
+    const possiblePaths = [];
+
+    // 1. 优先使用环境变量 (由 electron/main.js 设置)
+    if (process.env.RESOURCES_PATH) {
+        possiblePaths.push(path.join(process.env.RESOURCES_PATH, 'bin/ffmpeg.exe'));
+    }
+
+    // 2. Electron 打包环境的 process.resourcesPath
+    if (typeof process.resourcesPath === 'string') {
+        possiblePaths.push(path.join(process.resourcesPath, 'bin/ffmpeg.exe'));
+    }
+
+    // 3. 开发环境 - 项目根目录的 bin 文件夹
+    possiblePaths.push(path.join(__dirname, '../../bin/ffmpeg.exe'));
+
+    // 检查哪个路径存在
+    for (const ffmpegPath of possiblePaths) {
+        // 排除 app.asar 内部路径（无法执行）
+        if (ffmpegPath.includes('app.asar')) {
+            console.log(`[FFmpeg] Skipping asar path: ${ffmpegPath}`);
+            continue;
+        }
+        if (fs.existsSync(ffmpegPath)) {
+            console.log(`[FFmpeg] Found FFmpeg at: ${ffmpegPath}`);
+            return ffmpegPath;
+        }
+        console.log(`[FFmpeg] Not found: ${ffmpegPath}`);
+    }
+
+    // 如果都找不到，返回环境变量指定的路径（让后续代码报错）
+    const fallbackPath = process.env.RESOURCES_PATH
+        ? path.join(process.env.RESOURCES_PATH, 'bin/ffmpeg.exe')
+        : path.join(__dirname, '../../bin/ffmpeg.exe');
+    console.log(`[FFmpeg] Fallback path: ${fallbackPath}`);
+    return fallbackPath;
 }
 
 /**
