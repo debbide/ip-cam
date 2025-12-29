@@ -24,7 +24,7 @@ export interface ServerInfo {
 // 默认配置
 const DEFAULT_CONFIG: ServerConfig = {
   host: 'localhost',
-  apiPort: 3002,
+  apiPort: 3001,
   password: '',
 };
 
