@@ -41,7 +41,7 @@ jobs:
         working-directory: ip-cam-separated/frontend
         run: |
           npm run build
-          npx electron-builder --win nsis portable --x64
+          npx electron-builder --win portable --x64
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
