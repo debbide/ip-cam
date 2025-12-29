@@ -222,7 +222,7 @@ const Index = () => {
             ptzUrl: `http://${authPart}${data.ipAddress}:${data.port}`,
             streamType: data.streamType || 'mjpeg',
             hlsUrl: data.streamType === 'hls' ? hlsUrl : undefined,
-            webrtcUrl: data.streamType === 'webrtc' ? `http://${window.location.hostname}:8889/${streamId}` : undefined,
+            webrtcUrl: data.streamType === 'webrtc' ? `http://${window.location.hostname}:8889/${streamId}/whep` : undefined,
             humanDetectionEnabled: data.humanDetectionEnabled,
           };
         }
@@ -274,7 +274,7 @@ const Index = () => {
         ptzUrl: `http://${authPart}${data.ipAddress}:${data.port}`,
         streamType: data.streamType || 'mjpeg',
         hlsUrl: data.streamType === 'hls' ? hlsUrl : undefined,
-        webrtcUrl: data.streamType === 'webrtc' ? `http://${window.location.hostname}:8889/${streamId}` : undefined,
+        webrtcUrl: data.streamType === 'webrtc' ? `http://${window.location.hostname}:8889/${streamId}/whep` : undefined,
         humanDetectionEnabled: data.humanDetectionEnabled,
       };
 
