@@ -23,7 +23,7 @@ jobs:
         id: get_version
         shell: bash
         run: |
-          VERSION=$(jq -r '.version' ip-cam-separated/frontend/package.json)
+          VERSION=$(jq -r '.version' package.json)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Setup Node.js
