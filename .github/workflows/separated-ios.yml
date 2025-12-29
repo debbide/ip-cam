@@ -45,10 +45,9 @@ jobs:
         run: |
           npx cap add ios
           npx cap sync ios
-
-      - name: Install CocoaPods dependencies
-        working-directory: ip-cam-separated/frontend/ios/App
-        run: pod install
+          # 显示 iOS 目录结构
+          echo "iOS directory structure:"
+          ls -la ios/App/
 
       - name: Configure iOS for HTTP connections
         working-directory: ip-cam-separated/frontend/ios/App/App
