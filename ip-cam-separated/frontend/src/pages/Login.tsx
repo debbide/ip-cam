@@ -130,10 +130,7 @@ export default function Login() {
             </form>
 
             <div className="mt-6 pt-4 border-t text-center">
-              <p className="text-sm text-muted-foreground">
-                默认管理员账户: admin / Admin@123
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-xs text-muted-foreground">
                 如需创建新账户，请联系管理员
               </p>
             </div>
