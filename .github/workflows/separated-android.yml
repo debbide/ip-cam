@@ -3,9 +3,11 @@ name: Separated Android Build (Capacitor)
 on:
   push:
     branches:
+      - main
       - separated
     paths:
       - 'ip-cam-separated/frontend/**'
+      - '.github/workflows/separated-android.yml'
   workflow_dispatch:
 
 permissions:
@@ -18,8 +20,6 @@ jobs:
       VERSION: "1.0.20"
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: separated
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
