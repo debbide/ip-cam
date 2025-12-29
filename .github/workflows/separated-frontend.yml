@@ -38,6 +38,19 @@ jobs:
           npm run build
           npx electron-builder --win portable --x64
 
+      - name: Rename artifact with commit hash
+        shell: bash
+        run: |
+          SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
+          cd ip-cam-separated/frontend/dist-electron
+          for file in *.exe; do
+            if [ -f "$file" ]; then
+              newname="${file%.exe}-${SHORT_SHA}.exe"
+              mv "$file" "$newname"
+              echo "Renamed $file to $newname"
+            fi
+          done
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
@@ -47,6 +60,8 @@ jobs:
             ## 前后分离版客户端 v${{ env.VERSION }}
             
             Windows 客户端（需配合后端 Docker 镜像使用）
+            
+            构建: ${{ github.sha }}
           files: ip-cam-separated/frontend/dist-electron/*.exe
           draft: false
           prerelease: false
