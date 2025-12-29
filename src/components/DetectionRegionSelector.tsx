@@ -84,14 +84,13 @@ export function DetectionRegionSelector({
         // 简化版播放器，只用于预览
         // 注意：这里直接复用现有播放器组件，但可能需要禁用控制条等
         if (camera.streamType === 'hls' && camera.hlsUrl) {
-            return <HlsPlayer url={camera.hlsUrl} isOnline={true} autoPlay muted />;
+            return <HlsPlayer url={camera.hlsUrl} isOnline={true} />;
         }
         if (camera.streamType === 'flv' && camera.streamUrl) {
-            return <FlvPlayer url={camera.streamUrl} isOnline={true} autoPlay muted />;
+            return <FlvPlayer url={camera.streamUrl} isOnline={true} />;
         }
-        if (camera.streamType === 'webrtc') {
-            const streamId = camera.id.replace('cam-', '');
-            return <WebrtcPlayer url={`/whep/${streamId}`} isOnline={true} autoPlay muted />;
+        if (camera.streamType === 'webrtc' && camera.webrtcUrl) {
+            return <WebrtcPlayer url={camera.webrtcUrl} isOnline={true} />;
         }
         return <MjpegPlayer url={camera.mjpegUrl} isOnline={true} />;
     };
