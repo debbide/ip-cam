@@ -49,11 +49,9 @@
 
 ---
 
-## 🖥️ Windows 部署（推荐）
+## 🖥️ Windows 独立版部署
 
-> **❌ 本项目当前不支持 Docker 部署**
-
-如果你只是使用，不进行二次开发，推荐使用 Windows 可执行文件。
+> 适合个人使用，无需额外部署后端服务器。
 
 ### 使用步骤
 
@@ -66,6 +64,70 @@
 - 无需安装 Node.js
 - 支持 **便携模式**
 - 数据与配置文件存储在 exe 同级目录
+
+---
+
+## 🐳 Docker 部署（前后端分离版）
+
+> 适合在服务器上部署后端，多客户端共享监控。
+
+### 后端部署
+
+1. 创建 `docker-compose.yml` 文件：
+
+```yaml
+services:
+  ip-cam-backend:
+    image: ghcr.io/debbide/ip-cam-backend:latest
+    container_name: ip-cam-backend
+    restart: unless-stopped
+    ports:
+      - "3001:3001"     # API Server
+      - "8554:8554"     # RTSP TCP
+      - "8000:8000/udp" # RTSP UDP/RTP
+      - "8001:8001/udp" # RTSP UDP/RTCP
+      - "1935:1935"     # RTMP
+      - "8888:8888"     # HLS
+      - "8989:8989"     # WebRTC HTTP
+      - "8289:8289/udp" # WebRTC ICE/UDP
+      - "8890:8890/udp" # SRT
+    volumes:
+      - ./data:/app/data
+    environment:
+      - NODE_ENV=production
+      - TZ=Asia/Shanghai
+```
+
+2. 启动后端服务：
+
+```bash
+docker-compose up -d
+```
+
+3. 查看日志：
+
+```bash
+docker-compose logs -f
+```
+
+### 客户端使用
+
+1. 前往 [Releases](../../releases) 页面
+2. 下载 `IP.Cam.Client.x.x.x.exe`（前后端分离版客户端）
+3. 运行并连接到后端地址：`http://服务器IP:3001`
+
+### 端口说明
+
+| 端口 | 协议 | 用途 |
+|------|------|------|
+| 3001 | TCP | API 服务器 |
+| 8554 | TCP | RTSP |
+| 8000/8001 | UDP | RTSP RTP/RTCP |
+| 1935 | TCP | RTMP |
+| 8888 | TCP | HLS |
+| 8989 | TCP | WebRTC HTTP |
+| 8289 | UDP | WebRTC ICE |
+| 8890 | UDP | SRT |
 
 ---
 
