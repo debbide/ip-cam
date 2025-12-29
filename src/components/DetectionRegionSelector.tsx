@@ -90,7 +90,7 @@ export function DetectionRegionSelector({
             return <FlvPlayer url={camera.streamUrl} isOnline={true} />;
         }
         if (camera.streamType === 'webrtc' && camera.webrtcUrl) {
-            return <WebrtcPlayer url={camera.webrtcUrl} isOnline={true} />;
+            return <WebrtcPlayer url={camera.webrtcUrl} isOnline={true} streamId={camera.id.replace('cam-', '')} rtspUrl={camera.streamUrl} />;
         }
         return <MjpegPlayer url={camera.mjpegUrl} isOnline={true} />;
     };
