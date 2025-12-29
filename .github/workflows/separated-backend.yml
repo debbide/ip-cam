@@ -44,19 +44,17 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/ip-cam-backend:latest
             ghcr.io/${{ github.repository_owner }}/ip-cam-backend:${{ steps.get_version.outputs.version }}
-            ghcr.io/${{ github.repository_owner }}/ip-cam-backend:v1.0.20
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: v1.0.20
-          name: "IP Cam Streamer v1.0.20"
+          tag_name: v${{ steps.get_version.outputs.version }}
+          name: "IP Cam Streamer v${{ steps.get_version.outputs.version }}"
           body: |
-            ## Backend v${{ steps.get_version.outputs.version }}
+            ## 后端 Docker 镜像 v${{ steps.get_version.outputs.version }}
             
-            Docker Image:
             ```bash
-            docker pull ghcr.io/${{ github.repository_owner }}/ip-cam-backend:v1.0.20
+            docker pull ghcr.io/${{ github.repository_owner }}/ip-cam-backend:${{ steps.get_version.outputs.version }}
             ```
           draft: false
           prerelease: false

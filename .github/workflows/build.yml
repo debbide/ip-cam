@@ -2,8 +2,12 @@ name: Build Electron App
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'electron/**'
+      - 'package.json'
   workflow_dispatch:
 
 permissions:
@@ -15,6 +19,13 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+
+    - name: Get version from package.json
+      id: get_version
+      shell: bash
+      run: |
+        VERSION=$(jq -r '.version' package.json)
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
 
     - name: Use Node.js
       uses: actions/setup-node@v4
@@ -53,8 +64,15 @@ jobs:
 
     - name: Release
       uses: softprops/action-gh-release@v1
-      if: startsWith(github.ref, 'refs/tags/')
       with:
+        tag_name: v${{ steps.get_version.outputs.version }}
+        name: "IP Cam Streamer v${{ steps.get_version.outputs.version }}"
+        body: |
+          ## 独立客户端 v${{ steps.get_version.outputs.version }}
+          
+          Windows 独立版本，内置后端服务。
         files: dist-electron/*.exe
         draft: false
         prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
