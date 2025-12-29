@@ -246,6 +246,56 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(timer);
   }, [config.host, config.apiPort]);
 
+  // 心跳检测和自动重连
+  useEffect(() => {
+    let heartbeatTimer: NodeJS.Timeout;
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT_ATTEMPTS = 5;
+    const HEARTBEAT_INTERVAL = 30000; // 30秒
+
+    const checkConnection = async () => {
+      if (!isConnected || isConnecting) return;
+
+      try {
+        const response = await fetch(getApiUrl('/api/server-info'), {
+          method: 'GET',
+          signal: AbortSignal.timeout(5000),
+        });
+
+        if (!response.ok) {
+          throw new Error('Server not responding');
+        }
+
+        reconnectAttempts = 0; // 重置重连计数
+      } catch (e) {
+        console.warn('Heartbeat failed, attempting reconnect...');
+        setIsConnected(false);
+
+        if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
+          reconnectAttempts++;
+          console.log(`Reconnect attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS}`);
+          const success = await connect();
+          if (success) {
+            reconnectAttempts = 0;
+            console.log('Reconnected successfully');
+          }
+        } else {
+          setConnectionError('连接丢失，请检查网络后点击服务器设置重新连接');
+        }
+      }
+    };
+
+    if (isConnected) {
+      heartbeatTimer = setInterval(checkConnection, HEARTBEAT_INTERVAL);
+    }
+
+    return () => {
+      if (heartbeatTimer) {
+        clearInterval(heartbeatTimer);
+      }
+    };
+  }, [isConnected, isConnecting, getApiUrl, connect]);
+
   return (
     <ServerContext.Provider
       value={{
