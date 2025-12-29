@@ -32,6 +32,10 @@ jobs:
         working-directory: ip-cam-separated/frontend
         run: npm ci
 
+      - name: Install Capacitor iOS
+        working-directory: ip-cam-separated/frontend
+        run: npm install @capacitor/ios
+
       - name: Build web assets
         working-directory: ip-cam-separated/frontend
         run: npm run build
@@ -39,8 +43,12 @@ jobs:
       - name: Add iOS platform
         working-directory: ip-cam-separated/frontend
         run: |
-          npx cap add ios || true
+          npx cap add ios
           npx cap sync ios
+
+      - name: Install CocoaPods dependencies
+        working-directory: ip-cam-separated/frontend/ios/App
+        run: pod install
 
       - name: Configure iOS for HTTP connections
         working-directory: ip-cam-separated/frontend/ios/App/App
