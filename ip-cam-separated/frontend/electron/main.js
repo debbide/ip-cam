@@ -458,8 +458,6 @@ function createWindow() {
     } else {
         console.log('Loading from local file:', path.join(__dirname, '../dist/index.html'));
         mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
-        // 开启 DevTools 以便调试白屏问题
-        mainWindow.webContents.openDevTools();
     }
 
     mainWindow.on('closed', function () {
