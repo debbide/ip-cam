@@ -127,6 +127,11 @@ export const WebrtcPlayer = forwardRef<WebrtcPlayerRef, WebrtcPlayerProps>(({ ur
             }
         }
 
+        // 自动补全 /whep 后缀（兼容旧配置）
+        if (!whepUrl.endsWith('/whep')) {
+            whepUrl = whepUrl.replace(/\/?$/, '/whep');
+        }
+
         const initPlayer = async () => {
             try {
                 if (typeof RTCPeerConnection === 'undefined') {
