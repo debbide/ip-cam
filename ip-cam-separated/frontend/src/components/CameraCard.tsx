@@ -184,6 +184,8 @@ export function CameraCard({ camera, isSelected, onSelect, onFullscreen, onToggl
           url={camera.webrtcUrl}
           isOnline={camera.status === 'online'}
           rotation={camera.rotation || 0}
+          streamId={camera.id.replace('cam-', '')}
+          rtspUrl={camera.streamUrl}
         />
       );
     }

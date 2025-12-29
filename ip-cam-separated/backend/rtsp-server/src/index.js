@@ -374,7 +374,7 @@ async function startStream(streamId, rtspUrl, name = '') {
         const adminUser = currentSettings.publishAuth.user || 'admin';
         const adminPass = currentSettings.publishAuth.password || 'admin';
 
-        // 1. 注册原始流
+        // 1. 注册原始流 (使用 on-demand 减少资源占用)
         const rawStreamId = `${streamId}_raw`;
         await fetch(`${MEDIAMTX_API}/v3/config/paths/add/${rawStreamId}`, {
             method: 'POST',
@@ -384,7 +384,9 @@ async function startStream(streamId, rtspUrl, name = '') {
             },
             body: JSON.stringify({
                 source: rtspUrl,
-                sourceOnDemand: false,
+                sourceOnDemand: true,  // 按需拉取源流
+                sourceOnDemandStartTimeout: '30s',  // 源流启动超时
+                sourceOnDemandCloseAfter: '30s',    // 无人观看30秒后关闭源流
             })
         });
 
@@ -403,6 +405,8 @@ async function startStream(streamId, rtspUrl, name = '') {
                 source: 'publisher',
                 runOnDemand: `ffmpeg -hide_banner -loglevel error -rtsp_transport tcp -i ${ffmpegInput} -c:v copy -c:a libopus -f rtsp ${ffmpegOutput}`,
                 runOnDemandRestart: true,
+                runOnDemandStartTimeout: '60s',   // FFmpeg 启动超时增加到60秒
+                runOnDemandCloseAfter: '30s',     // 无人观看30秒后关闭 FFmpeg
             })
         });
 

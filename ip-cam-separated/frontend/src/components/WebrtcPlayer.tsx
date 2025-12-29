@@ -10,6 +10,8 @@ interface WebrtcPlayerProps {
     rotation?: number;
     initialMuted?: boolean;
     password?: string;
+    streamId?: string; // 用于重新注册流
+    rtspUrl?: string;  // 源 RTSP URL，用于重新注册
 }
 
 export interface WebrtcPlayerRef {
@@ -20,7 +22,7 @@ export interface WebrtcPlayerRef {
     getVolume: () => number;
 }
 
-export const WebrtcPlayer = forwardRef<WebrtcPlayerRef, WebrtcPlayerProps>(({ url, isOnline, className = '', isFullscreen = false, rotation = 0, initialMuted = true, password }, ref) => {
+export const WebrtcPlayer = forwardRef<WebrtcPlayerRef, WebrtcPlayerProps>(({ url, isOnline, className = '', isFullscreen = false, rotation = 0, initialMuted = true, password, streamId, rtspUrl }, ref) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const pcRef = useRef<RTCPeerConnection | null>(null);
     const streamRef = useRef<MediaStream | null>(null); // 保存 MediaStream 引用
@@ -31,6 +33,7 @@ export const WebrtcPlayer = forwardRef<WebrtcPlayerRef, WebrtcPlayerProps>(({ ur
     const retryCountRef = useRef(0); // 用于闭包中获取最新值
     const maxRetries = 30; // 最多重试30次，每次2秒，共60秒
     const retryInterval = 2000; // 2秒重试一次
+    const reRegisterIntervalRef = useRef(5); // 每5次重试，尝试重新注册流
     const [debugInfo, setDebugInfo] = useState({
         iceConnection: 'new',
         iceGathering: 'new',
@@ -42,6 +45,37 @@ export const WebrtcPlayer = forwardRef<WebrtcPlayerRef, WebrtcPlayerProps>(({ ur
     useEffect(() => {
         retryCountRef.current = retryCount;
     }, [retryCount]);
+
+    // 重新注册流到后端
+    const reRegisterStream = async () => {
+        if (!streamId || !rtspUrl) return false;
+
+        try {
+            console.log(`[WebRTC] Re-registering stream: ${streamId}`);
+
+            // 先删除旧流
+            await fetch(`/api/streams/${streamId}`, { method: 'DELETE' }).catch(() => {});
+
+            // 等待一小段时间
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // 重新添加流
+            const response = await fetch('/api/streams', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: streamId, rtspUrl }),
+            });
+
+            if (response.ok) {
+                console.log(`[WebRTC] Stream ${streamId} re-registered successfully`);
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error(`[WebRTC] Failed to re-register stream:`, error);
+            return false;
+        }
+    };
 
     // 监听视频元素状态
     useEffect(() => {
@@ -115,13 +149,25 @@ export const WebrtcPlayer = forwardRef<WebrtcPlayerRef, WebrtcPlayerProps>(({ ur
         streamRef.current = null;
     };
 
-    // 自动重试函数
-    const scheduleRetry = () => {
-        if (retryCountRef.current < maxRetries && isOnline) {
-            // console.log(`[WebRTC] 将在 ${retryInterval / 1000} 秒后重试 (${retryCountRef.current + 1}/${maxRetries})`);
-            retryTimerRef.current = setTimeout(() => {
-                setRetryCount(prev => prev + 1);
-            }, retryInterval);
+    // 自动重试函数 - 无限重试，断连后不需要重启客户端
+    const scheduleRetry = async () => {
+        if (isOnline) {
+            // 每5次重试，尝试重新注册流（FFmpeg 可能已经退出）
+            const currentRetry = retryCountRef.current;
+            if (currentRetry > 0 && currentRetry % reRegisterIntervalRef.current === 0 && streamId && rtspUrl) {
+                console.log(`[WebRTC] Retry #${currentRetry}, attempting to re-register stream...`);
+                await reRegisterStream();
+                // 重新注册后等待更长时间让 FFmpeg 启动
+                retryTimerRef.current = setTimeout(() => {
+                    setRetryCount(prev => prev + 1);
+                }, 3000);
+            } else {
+                // 前10次每2秒，之后每5秒
+                const interval = currentRetry < 10 ? retryInterval : 5000;
+                retryTimerRef.current = setTimeout(() => {
+                    setRetryCount(prev => prev + 1);
+                }, interval);
+            }
         }
     };
 

@@ -91,7 +91,7 @@ export function DetectionRegionSelector({
         }
         if (camera.streamType === 'webrtc') {
             const streamId = camera.id.replace('cam-', '');
-            return <WebrtcPlayer url={`/whep/${streamId}`} isOnline={true} autoPlay muted />;
+            return <WebrtcPlayer url={`/whep/${streamId}`} isOnline={true} streamId={streamId} rtspUrl={camera.streamUrl} />;
         }
         return <MjpegPlayer url={camera.mjpegUrl} isOnline={true} />;
     };

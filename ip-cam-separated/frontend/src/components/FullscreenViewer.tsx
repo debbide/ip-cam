@@ -170,6 +170,8 @@ export function FullscreenViewer({ camera, cameras, onClose, onNavigate, onToggl
               url={`/whep/${camera.id.replace('cam-', '')}`}
               isOnline={camera.status === 'online'}
               isFullscreen={true}
+              streamId={camera.id.replace('cam-', '')}
+              rtspUrl={camera.streamUrl}
             />
           ) : (
             <MjpegPlayer

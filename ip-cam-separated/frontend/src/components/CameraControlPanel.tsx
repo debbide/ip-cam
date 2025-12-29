@@ -100,7 +100,7 @@ export function CameraControlPanel({
         if (camera.streamType === 'webrtc') {
             const streamId = camera.id.replace('cam-', '');
             const webrtcUrl = `/whep/${streamId}`;
-            return <WebrtcPlayer ref={webrtcRef} url={webrtcUrl} isOnline={camera.status === 'online'} />;
+            return <WebrtcPlayer ref={webrtcRef} url={webrtcUrl} isOnline={camera.status === 'online'} streamId={streamId} rtspUrl={camera.streamUrl} />;
         }
         return <MjpegPlayer ref={mjpegRef} url={camera.mjpegUrl} isOnline={camera.status === 'online'} />;
     };
