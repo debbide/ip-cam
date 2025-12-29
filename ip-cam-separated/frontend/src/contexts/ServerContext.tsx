@@ -130,7 +130,7 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
 
   // 获取 WebRTC URL (WHEP 接口)
   const getWebrtcUrl = useCallback((streamId: string) => {
-    const port = serverInfo?.ports.webrtc || 8889;
+    const port = serverInfo?.ports.webrtc || 8989;
     return `http://${config.host}:${port}/${streamId}/whep`;
   }, [config.host, serverInfo]);
 

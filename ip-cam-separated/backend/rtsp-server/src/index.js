@@ -37,6 +37,42 @@ const MEDIAMTX_CONFIG_FILE = '/etc/mediamtx.yml';
 
 const MEDIAMTX_API = process.env.MEDIAMTX_API || 'http://127.0.0.1:9997';
 
+/**
+ * 从 MediaMTX 配置文件读取端口
+ */
+function getMediaMtxPorts() {
+    const defaultPorts = {
+        api: 3001,
+        rtsp: 8554,
+        hls: 8888,
+        webrtc: 8989
+    };
+
+    try {
+        if (!fs.existsSync(MEDIAMTX_CONFIG_FILE)) {
+            console.warn('MediaMTX config not found, using default ports');
+            return defaultPorts;
+        }
+
+        const config = fs.readFileSync(MEDIAMTX_CONFIG_FILE, 'utf-8');
+
+        // 解析端口 (格式: :端口号)
+        const rtspMatch = config.match(/rtspAddress:\s*:(\d+)/);
+        const hlsMatch = config.match(/hlsAddress:\s*:(\d+)/);
+        const webrtcMatch = config.match(/webrtcAddress:\s*:(\d+)/);
+
+        return {
+            api: parseInt(process.env.PORT) || 3001,
+            rtsp: rtspMatch ? parseInt(rtspMatch[1]) : defaultPorts.rtsp,
+            hls: hlsMatch ? parseInt(hlsMatch[1]) : defaultPorts.hls,
+            webrtc: webrtcMatch ? parseInt(webrtcMatch[1]) : defaultPorts.webrtc
+        };
+    } catch (err) {
+        console.error('Failed to read MediaMTX config:', err);
+        return defaultPorts;
+    }
+}
+
 // JWT 密钥
 const JWT_SECRET = process.env.JWT_SECRET || 'ip-cam-secret-key-2024';
 
@@ -874,18 +910,14 @@ app.get('/health', (req, res) => {
 });
 
 app.get('/api/server-info', (req, res) => {
+    const ports = getMediaMtxPorts();
     res.json({
         name: 'IP Cam Backend',
         version: '1.0.0',
         authRequired: currentSettings.apiAuth.enabled, // API 认证状态
         streamAuthEnabled: currentSettings.streamAuth.enabled, // 流认证状态
         streams: streams.size,
-        ports: {
-            api: parseInt(process.env.PORT) || 3001,
-            rtsp: parseInt(process.env.RTSP_PORT) || 8554,
-            hls: parseInt(process.env.HLS_PORT) || 8888,
-            webrtc: parseInt(process.env.WEBRTC_PORT) || 8889
-        }
+        ports: ports
     });
 });
 
