@@ -56,22 +56,47 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+    # === 方案 B：生成唯一文件名（版本 + run_number）并重命名产物 ===
+    - name: Rename EXE with unique name
+      id: rename_exe
+      shell: pwsh
+      run: |
+        $version = "${{ steps.get_version.outputs.version }}"
+        $run = "${{ github.run_number }}"
+        $tag = "v$version"
+
+        $exe = Get-ChildItem -Path "dist-electron" -Filter "*.exe" | Select-Object -First 1
+        if (-not $exe) { throw "No .exe found in dist-electron/" }
+
+        # 你想要的最终文件名（可按需改格式）
+        $newName = "IP.Cam.Streamer_${tag}_run${run}.exe"
+        $newPath = Join-Path "dist-electron" $newName
+
+        Rename-Item -Path $exe.FullName -NewName $newName -Force
+
+        "asset_path=$newPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+        "asset_name=$newName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+        "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: IP-Cam-Streamer-Windows
-        path: dist-electron/*.exe
+        path: ${{ steps.rename_exe.outputs.asset_path }}
 
     - name: Release
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: v${{ steps.get_version.outputs.version }}
-        name: "IP Cam Streamer v${{ steps.get_version.outputs.version }}"
+        tag_name: ${{ steps.rename_exe.outputs.tag }}
+        name: "IP Cam Streamer ${{ steps.rename_exe.outputs.tag }}"
         body: |
-          ## 独立客户端 v${{ steps.get_version.outputs.version }}
+          ## 独立客户端 ${{ steps.rename_exe.outputs.tag }}
           
           Windows 独立版本，内置后端服务。
-        files: dist-electron/*.exe
+          
+          **文件名**：${{ steps.rename_exe.outputs.asset_name }}
+          **构建号**：${{ github.run_number }}
+        files: ${{ steps.rename_exe.outputs.asset_path }}
         draft: false
         prerelease: false
       env:
