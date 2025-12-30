@@ -363,6 +363,65 @@ function getMediaMtxAuthHeader() {
 }
 
 /**
+ * 检查 MediaMTX 中流的状态
+ * @param {string} streamId - 流 ID
+ * @returns {Promise<{exists: boolean, ready: boolean, source: string|null}>}
+ */
+async function checkStreamStatus(streamId) {
+    try {
+        const authHeader = getMediaMtxAuthHeader();
+        const response = await fetch(`${MEDIAMTX_API}/v3/paths/get/${streamId}`, {
+            method: 'GET',
+            headers: { 'Authorization': authHeader }
+        });
+
+        if (!response.ok) {
+            return { exists: false, ready: false, source: null };
+        }
+
+        const data = await response.json();
+        // 检查流是否有活跃的源连接
+        const hasSource = data.source && data.source.type;
+        const isReady = data.ready === true;
+
+        return {
+            exists: true,
+            ready: isReady,
+            source: data.source?.type || null,
+            readers: data.readers || 0
+        };
+    } catch (err) {
+        console.error(`[${streamId}] Failed to check stream status:`, err.message);
+        return { exists: false, ready: false, source: null };
+    }
+}
+
+/**
+ * 验证并修复流状态
+ * 如果流在内存中存在但 MediaMTX 中无效，则重新注册
+ * @param {string} streamId - 流 ID
+ * @returns {Promise<boolean>} - 是否需要重新注册
+ */
+async function validateAndRepairStream(streamId) {
+    const stream = streams.get(streamId);
+    if (!stream) return false;
+
+    // 检查主流路径状态
+    const status = await checkStreamStatus(streamId);
+    const rawStatus = await checkStreamStatus(`${streamId}_raw`);
+
+    console.log(`[${streamId}] Stream status check - main: ${JSON.stringify(status)}, raw: ${JSON.stringify(rawStatus)}`);
+
+    // 如果路径不存在或源未就绪，需要重新注册
+    if (!status.exists || !rawStatus.exists) {
+        console.log(`[${streamId}] Stream path missing in MediaMTX, will re-register`);
+        return true;
+    }
+
+    return false;
+}
+
+/**
  * 注册流到 MediaMTX
  */
 async function startStream(streamId, rtspUrl, name = '') {
@@ -709,7 +768,36 @@ app.post('/api/streams', authMiddleware, async (req, res) => {
         return res.status(400).json({ error: 'Missing id or rtspUrl' });
     }
 
+    // 检查流是否已存在于内存中
     if (streams.has(id)) {
+        // 验证 MediaMTX 中的流状态是否有效
+        const needsRepair = await validateAndRepairStream(id);
+
+        if (needsRepair) {
+            // 流无效，需要重新注册
+            console.log(`[${id}] Stream invalid in MediaMTX, re-registering...`);
+            const existingStream = streams.get(id);
+
+            // 先清理旧的路径
+            await stopStream(id);
+
+            // 重新注册
+            try {
+                const stream = await startStream(id, rtspUrl || existingStream.rtspUrl, name || existingStream.name);
+                saveCameras();
+                return res.json({
+                    id: stream.id,
+                    name: stream.name,
+                    rtspUrl: stream.rtspUrl,
+                    status: stream.status,
+                    repaired: true
+                });
+            } catch (err) {
+                return res.status(500).json({ error: err.message });
+            }
+        }
+
+        // 流有效，直接返回
         return res.json({ message: 'Stream already exists', id });
     }
 
@@ -927,6 +1015,40 @@ app.get('/api/server-info', (req, res) => {
 
 const PORT = process.env.PORT || 3001;
 
+// 健康检查间隔（毫秒）
+const HEALTH_CHECK_INTERVAL = 60000; // 每分钟检查一次
+
+/**
+ * 定时健康检查：自动检测并修复失效的流
+ */
+async function healthCheckStreams() {
+    if (streams.size === 0) return;
+
+    console.log(`[HealthCheck] Checking ${streams.size} streams...`);
+
+    for (const [streamId, stream] of streams) {
+        try {
+            const needsRepair = await validateAndRepairStream(streamId);
+
+            if (needsRepair) {
+                console.log(`[HealthCheck] Repairing stream ${streamId}...`);
+
+                // 先清理
+                await stopStream(streamId);
+
+                // 重新注册
+                await startStream(streamId, stream.rtspUrl, stream.name);
+                console.log(`[HealthCheck] Stream ${streamId} repaired successfully`);
+            }
+        } catch (err) {
+            console.error(`[HealthCheck] Failed to repair stream ${streamId}:`, err.message);
+        }
+
+        // 每个流检查间隔 500ms，避免请求过快
+        await new Promise(resolve => setTimeout(resolve, 500));
+    }
+}
+
 async function restoreCameras() {
     const cameras = loadCameras();
     console.log(`Restoring ${cameras.length} cameras...`);
@@ -961,4 +1083,8 @@ app.listen(PORT, '0.0.0.0', async () => {
     console.log(`=================================`);
 
     await restoreCameras();
+
+    // 启动定时健康检查
+    console.log(`[HealthCheck] Starting health check timer (interval: ${HEALTH_CHECK_INTERVAL / 1000}s)`);
+    setInterval(healthCheckStreams, HEALTH_CHECK_INTERVAL);
 });
