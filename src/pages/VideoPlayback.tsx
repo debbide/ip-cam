@@ -64,17 +64,18 @@ export function VideoPlayback({ onBack }: VideoPlaybackProps) {
     const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
     const [isSelectMode, setIsSelectMode] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
+    const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
 
     const loadFiles = async () => {
-        if (!window.electronAPI) {
-            toast.error('此功能仅在 Electron 客户端可用');
+        if (!isElectron) {
+            // 浏览器环境下不显示错误，只是设置为空
             setLoading(false);
             return;
         }
 
         setLoading(true);
         try {
-            const result = await window.electronAPI.listSavedFiles();
+            const result = await (window as any).electronAPI.listSavedFiles();
             if (result.success && result.files) {
                 setFiles(result.files);
             } else {
@@ -91,11 +92,35 @@ export function VideoPlayback({ onBack }: VideoPlaybackProps) {
         loadFiles();
     }, []);
 
+    // 浏览器环境下显示提示页面
+    if (!isElectron) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+                <Video className="w-16 h-16 text-muted-foreground mb-4" />
+                <h2 className="text-xl font-semibold mb-2">录像回放</h2>
+                <p className="text-muted-foreground mb-4">
+                    此功能需要在桌面客户端中使用。
+                </p>
+                <p className="text-sm text-muted-foreground mb-6">
+                    浏览器环境下，录像文件存储在服务器的 Docker 容器中。<br />
+                    请使用以下命令访问录像文件：
+                </p>
+                <code className="bg-muted px-4 py-2 rounded text-sm mb-6">
+                    docker exec -it ip-cam-web ls /app/data
+                </code>
+                <Button onClick={onBack} variant="outline">
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    返回
+                </Button>
+            </div>
+        );
+    }
+
     const handlePreview = async (file: SavedFile) => {
-        if (!window.electronAPI) return;
+        if (!isElectron) return;
 
         try {
-            const result = await window.electronAPI.getFileUrl(file.path);
+            const result = await (window as any).electronAPI.getFileUrl(file.path);
             if (result.success && result.url) {
                 setPreviewUrl(result.url);
                 setSelectedFile(file);
@@ -108,10 +133,10 @@ export function VideoPlayback({ onBack }: VideoPlaybackProps) {
     };
 
     const handleDelete = async () => {
-        if (!deleteTarget || !window.electronAPI) return;
+        if (!deleteTarget || !isElectron) return;
 
         try {
-            const result = await window.electronAPI.deleteFile(deleteTarget.path);
+            const result = await (window as any).electronAPI.deleteFile(deleteTarget.path);
             if (result.success) {
                 toast.success('文件已删除');
                 setDeleteTarget(null);
@@ -125,14 +150,14 @@ export function VideoPlayback({ onBack }: VideoPlaybackProps) {
     };
 
     const handleBatchDelete = async () => {
-        if (!window.electronAPI || selectedFiles.size === 0) return;
+        if (!isElectron || selectedFiles.size === 0) return;
 
         let successCount = 0;
         let failCount = 0;
 
         for (const filePath of selectedFiles) {
             try {
-                const result = await window.electronAPI.deleteFile(filePath);
+                const result = await (window as any).electronAPI.deleteFile(filePath);
                 if (result.success) {
                     successCount++;
                 } else {
@@ -377,7 +402,7 @@ export function VideoPlayback({ onBack }: VideoPlaybackProps) {
                                 variant="outline"
                                 size="sm"
                                 className="gap-2"
-                                onClick={() => window.electronAPI?.openSaveFolder()}
+                                onClick={() => (window as any).electronAPI?.openSaveFolder()}
                             >
                                 <FolderOpen className="w-4 h-4" />
                                 打开文件夹

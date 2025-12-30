@@ -18,13 +18,27 @@ export function StorageSettings() {
         enabled: false
     });
     const [hasChanges, setHasChanges] = useState(false);
+    const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
 
     const loadStats = async () => {
-        if (!window.electronAPI) return;
         try {
             setLoading(true);
-            const result = await window.electronAPI.getStorageStats();
-            setStats(result);
+            if (!isElectron) {
+                // 浏览器环境：从后端 API 获取
+                const response = await fetch('/api/system-stats');
+                if (response.ok) {
+                    const data = await response.json();
+                    setStats({
+                        usedBytes: (data.disk?.used || 0) * 1024 * 1024 * 1024,
+                        path: '/app/data',
+                        quotaGB: 50,
+                        enabled: false
+                    });
+                }
+            } else {
+                const result = await (window as any).electronAPI.getStorageStats();
+                setStats(result);
+            }
             setHasChanges(false);
         } catch (error) {
             console.error('Failed to load storage stats:', error);
@@ -39,9 +53,12 @@ export function StorageSettings() {
     }, []);
 
     const handleSave = async () => {
-        if (!window.electronAPI) return;
+        if (!isElectron) {
+            toast.info('浏览器环境下存储设置需在服务器端配置');
+            return;
+        }
         try {
-            await window.electronAPI.updateStorageSettings({
+            await (window as any).electronAPI.updateStorageSettings({
                 enabled: stats.enabled,
                 maxSizeGB: stats.quotaGB
             });

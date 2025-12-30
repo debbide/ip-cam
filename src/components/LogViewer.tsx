@@ -16,11 +16,33 @@ export function LogViewer() {
     const [isOpen, setIsOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
+    const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
 
     const fetchLogs = async () => {
+        // 浏览器环境：从后端 API 获取日志
+        if (!isElectron) {
+            setIsLoading(true);
+            try {
+                const response = await fetch('/api/logs');
+                if (response.ok) {
+                    const data = await response.json();
+                    setLogs(data.logs || '暂无日志');
+                } else {
+                    // 如果 API 不存在，显示提示信息
+                    setLogs('浏览器环境下日志功能有限。\n\n查看完整日志请使用:\ndocker logs -f ip-cam-web');
+                }
+            } catch (error) {
+                setLogs('浏览器环境下日志功能有限。\n\n查看完整日志请使用:\ndocker logs -f ip-cam-web');
+            } finally {
+                setIsLoading(false);
+            }
+            return;
+        }
+
+        // Electron 环境：使用 Electron API
         // @ts-ignore
         if (!window.electronAPI?.getAppLogs) {
-            setLogs("Error: Electron API not available (are you running in browser?)");
+            setLogs("Electron API not available");
             return;
         }
         setIsLoading(true);

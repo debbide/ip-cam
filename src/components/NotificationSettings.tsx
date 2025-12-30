@@ -28,15 +28,30 @@ export function NotificationSettings() {
     });
     const [testing, setTesting] = useState(false);
     const [hasChanges, setHasChanges] = useState(false);
+    const isElectron = typeof window !== 'undefined' && !!(window as any).electronAPI;
 
     useEffect(() => {
         loadConfig();
     }, []);
 
     const loadConfig = async () => {
-        if (!window.electronAPI) return;
+        if (!isElectron) {
+            // 浏览器环境：从后端 API 加载
+            try {
+                const response = await fetch('/api/settings');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.notification) {
+                        setConfig(data.notification);
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load notification config:', error);
+            }
+            return;
+        }
         try {
-            const result = await (window.electronAPI as any).getNotificationConfig?.();
+            const result = await (window as any).electronAPI.getNotificationConfig?.();
             if (result) {
                 setConfig(result);
             }
@@ -46,9 +61,27 @@ export function NotificationSettings() {
     };
 
     const handleSave = async () => {
-        if (!window.electronAPI) return;
+        if (!isElectron) {
+            // 浏览器环境：保存到后端 API
+            try {
+                const response = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ notification: config })
+                });
+                if (response.ok) {
+                    toast.success('通知设置已保存');
+                    setHasChanges(false);
+                } else {
+                    toast.error('保存失败');
+                }
+            } catch (error) {
+                toast.error('保存失败');
+            }
+            return;
+        }
         try {
-            await (window.electronAPI as any).updateNotificationConfig?.(config);
+            await (window as any).electronAPI.updateNotificationConfig?.(config);
             toast.success('通知设置已保存');
             setHasChanges(false);
         } catch (error) {
@@ -57,10 +90,13 @@ export function NotificationSettings() {
     };
 
     const handleTest = async () => {
-        if (!window.electronAPI) return;
+        if (!isElectron) {
+            toast.info('浏览器环境暂不支持测试通知，请保存后在实际检测时验证');
+            return;
+        }
         setTesting(true);
         try {
-            const result = await (window.electronAPI as any).sendTestNotification?.();
+            const result = await (window as any).electronAPI.sendTestNotification?.();
             if (result?.success) {
                 toast.success('测试通知发送成功！', {
                     icon: <CheckCircle2 className="w-4 h-4 text-green-500" />
