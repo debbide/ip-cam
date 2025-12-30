@@ -18,86 +18,92 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Get version from package.json
-      id: get_version
-      shell: bash
-      run: |
-        VERSION=$(jq -r '.version' package.json)
-        echo "version=$VERSION" >> $GITHUB_OUTPUT
+      - name: Get version from package.json
+        id: get_version
+        shell: bash
+        run: |
+          VERSION=$(jq -r '.version' package.json)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-    - name: Use Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
 
-    - name: Download MediaMTX
-      run: |
-        New-Item -ItemType Directory -Force -Path bin
-        Invoke-WebRequest -Uri "https://github.com/bluenviron/mediamtx/releases/download/v1.9.3/mediamtx_v1.9.3_windows_amd64.zip" -OutFile "bin\mediamtx.zip"
-        Expand-Archive -Path "bin\mediamtx.zip" -DestinationPath "bin" -Force
-        Remove-Item "bin\mediamtx.zip"
+      - name: Download MediaMTX
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path bin | Out-Null
+          Invoke-WebRequest -Uri "https://github.com/bluenviron/mediamtx/releases/download/v1.9.3/mediamtx_v1.9.3_windows_amd64.zip" -OutFile "bin\mediamtx.zip"
+          Expand-Archive -Path "bin\mediamtx.zip" -DestinationPath "bin" -Force
+          Remove-Item "bin\mediamtx.zip" -Force
 
-    - name: Download FFmpeg
-      run: |
-        Invoke-WebRequest -Uri "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip" -OutFile "ffmpeg.zip"
-        Expand-Archive -Path "ffmpeg.zip" -DestinationPath "ffmpeg-temp" -Force
-        Copy-Item "ffmpeg-temp\ffmpeg-master-latest-win64-gpl\bin\ffmpeg.exe" -Destination "bin\ffmpeg.exe"
-        Remove-Item "ffmpeg.zip"
-        Remove-Item -Recurse -Force "ffmpeg-temp"
+      - name: Download FFmpeg
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip" -OutFile "ffmpeg.zip"
+          Expand-Archive -Path "ffmpeg.zip" -DestinationPath "ffmpeg-temp" -Force
+          Copy-Item "ffmpeg-temp\ffmpeg-master-latest-win64-gpl\bin\ffmpeg.exe" -Destination "bin\ffmpeg.exe" -Force
+          Remove-Item "ffmpeg.zip" -Force
+          Remove-Item -Recurse -Force "ffmpeg-temp"
 
-    - name: Install Dependencies
-      run: npm install
+      - name: Install Dependencies
+        run: npm install
 
-    - name: Build Portable App
-      run: npm run build:portable
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build Portable App
+        run: npm run build:portable
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-    # === 方案 B：生成唯一文件名（版本 + run_number）并重命名产物 ===
-    - name: Rename EXE with unique name
-      id: rename_exe
-      shell: pwsh
-      run: |
-        $version = "${{ steps.get_version.outputs.version }}"
-        $run = "${{ github.run_number }}"
-        $tag = "v$version"
+      # ✅ 只给 IPCam.Streamer.<version>.exe 加随机后缀
+      # 例如：IPCam.Streamer.1.0.20.exe -> IPCam.Streamer.1.0.20-3369404.exe
+      - name: Rename Streamer EXE with random suffix
+        shell: pwsh
+        run: |
+          $suffix  = "${{ github.sha }}".Substring(0,7)
+          $version = "${{ steps.get_version.outputs.version }}"
+          $dir     = "dist-electron"
 
-        $exe = Get-ChildItem -Path "dist-electron" -Filter "*.exe" | Select-Object -First 1
-        if (-not $exe) { throw "No .exe found in dist-electron/" }
+          $target = Join-Path $dir ("IPCam.Streamer.{0}.exe" -f $version)
 
-        # 你想要的最终文件名（可按需改格式）
-        $newName = "IP.Cam.Streamer_${tag}_run${run}.exe"
-        $newPath = Join-Path "dist-electron" $newName
+          if (Test-Path $target) {
+            $newName = ("IPCam.Streamer.{0}-{1}.exe" -f $version, $suffix)
+            Rename-Item -Path $target -NewName $newName -Force
+            Write-Host "Renamed: $target -> $newName"
+          } else {
+            # 兜底：如果构建出来的名字不完全一致，就找第一个匹配 IPCam.Streamer*.exe
+            $f = Get-ChildItem -Path $dir -Filter "IPCam.Streamer*.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+            if (-not $f) { throw "Cannot find IPCam.Streamer*.exe in dist-electron/" }
 
-        Rename-Item -Path $exe.FullName -NewName $newName -Force
+            $base = [System.IO.Path]::GetFileNameWithoutExtension($f.Name)
+            $newName = "${base}-${suffix}.exe"
+            Rename-Item -Path $f.FullName -NewName $newName -Force
+            Write-Host "Renamed: $($f.Name) -> $newName"
+          }
 
-        "asset_path=$newPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-        "asset_name=$newName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
-        "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          Write-Host "EXEs in dist-electron:"
+          Get-ChildItem -Path $dir -Filter "*.exe" | ForEach-Object { Write-Host $_.Name }
 
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: IP-Cam-Streamer-Windows
-        path: ${{ steps.rename_exe.outputs.asset_path }}
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: IP-Cam-Streamer-Windows
+          path: dist-electron/*.exe
 
-    - name: Release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: ${{ steps.rename_exe.outputs.tag }}
-        name: "IP Cam Streamer ${{ steps.rename_exe.outputs.tag }}"
-        body: |
-          ## 独立客户端 ${{ steps.rename_exe.outputs.tag }}
-          
-          Windows 独立版本，内置后端服务。
-          
-          **文件名**：${{ steps.rename_exe.outputs.asset_name }}
-          **构建号**：${{ github.run_number }}
-        files: ${{ steps.rename_exe.outputs.asset_path }}
-        draft: false
-        prerelease: false
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.get_version.outputs.version }}
+          name: "IP Cam Streamer v${{ steps.get_version.outputs.version }}"
+          body: |
+            ## 独立客户端 v${{ steps.get_version.outputs.version }}
+
+            Windows 独立版本，内置后端服务。
+          files: dist-electron/*.exe
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
