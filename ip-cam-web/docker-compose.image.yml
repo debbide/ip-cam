@@ -7,6 +7,8 @@
 # 访问:
 #   https://你的服务器IP
 #
+# WebRTC 说明:
+#   如果 WebRTC 视频无法播放，需要设置 WEBRTC_EXTERNAL_IP 为服务器的外部 IP
 
 services:
   ip-cam-web:
@@ -20,6 +22,8 @@ services:
       - "8289:8289/udp" # WebRTC ICE
     environment:
       - TZ=Asia/Shanghai
+      # 如果 WebRTC 视频无法播放，取消注释并设置服务器外部 IP
+      # - WEBRTC_EXTERNAL_IP=192.168.1.100
     volumes:
       - ipcam-data:/app/data          # 摄像头配置、录像
       - ipcam-ssl:/etc/nginx/ssl      # SSL 证书

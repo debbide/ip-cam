@@ -165,6 +165,8 @@ export function CameraCard({ camera, isSelected, onSelect, onFullscreen, onToggl
 
   // 根据 streamType 选择播放器
   const renderPlayer = () => {
+    const streamId = camera.id.replace('cam-', '');
+
     if (camera.streamType === 'hls' && camera.hlsUrl) {
       return (
         <HlsPlayer
@@ -172,6 +174,8 @@ export function CameraCard({ camera, isSelected, onSelect, onFullscreen, onToggl
           url={camera.hlsUrl}
           isOnline={camera.status === 'online'}
           rotation={camera.rotation || 0}
+          streamId={streamId}
+          rtspUrl={camera.streamUrl}
         />
       );
     }
@@ -192,7 +196,7 @@ export function CameraCard({ camera, isSelected, onSelect, onFullscreen, onToggl
           url={camera.webrtcUrl}
           isOnline={camera.status === 'online'}
           rotation={camera.rotation || 0}
-          streamId={camera.id.replace('cam-', '')}
+          streamId={streamId}
           rtspUrl={camera.streamUrl}
         />
       );

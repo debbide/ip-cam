@@ -156,6 +156,8 @@ export function FullscreenViewer({ camera, cameras, onClose, onNavigate, onToggl
               ref={hlsRef}
               url={camera.hlsUrl}
               isOnline={camera.status === 'online'}
+              streamId={camera.id.replace('cam-', '')}
+              rtspUrl={camera.streamUrl}
             />
           ) : camera.streamType === 'flv' && camera.streamUrl ? (
             <FlvPlayer

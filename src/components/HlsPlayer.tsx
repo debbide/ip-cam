@@ -8,23 +8,95 @@ interface HlsPlayerProps {
     isOnline: boolean;
     className?: string;
     rotation?: number;
+    streamId?: string; // 用于重新注册流
+    rtspUrl?: string;  // 源 RTSP URL，用于重新注册
 }
 
 export interface HlsPlayerRef {
     getVideoElement: () => HTMLVideoElement | null;
 }
 
-export const HlsPlayer = forwardRef<HlsPlayerRef, HlsPlayerProps>(({ url, isOnline, className = '', rotation = 0 }, ref) => {
+export const HlsPlayer = forwardRef<HlsPlayerRef, HlsPlayerProps>(({ url, isOnline, className = '', rotation = 0, streamId, rtspUrl }, ref) => {
     const [status, setStatus] = useState<'loading' | 'connected' | 'error'>('loading');
     const [retryCount, setRetryCount] = useState(0);
     const videoRef = useRef<HTMLVideoElement>(null);
     const hlsRef = useRef<Hls | null>(null);
+    const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const retryCountRef = useRef(0);
+    const maxRetries = 30; // 最大重试次数
+    const reRegisterInterval = 5; // 每5次重试，尝试重新注册流
+
+    // 同步 ref
+    useEffect(() => {
+        retryCountRef.current = retryCount;
+    }, [retryCount]);
+
+    // 重新注册流到后端
+    const reRegisterStream = async () => {
+        if (!streamId || !rtspUrl) return false;
+
+        try {
+            console.log(`[HLS] Re-registering stream: ${streamId}`);
+
+            // 先删除旧流
+            await fetch(`/api/streams/${streamId}`, { method: 'DELETE' }).catch(() => {});
+
+            // 等待一小段时间
+            await new Promise(resolve => setTimeout(resolve, 500));
+
+            // 重新添加流
+            const response = await fetch('/api/streams', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: streamId, rtspUrl }),
+            });
+
+            if (response.ok) {
+                console.log(`[HLS] Stream ${streamId} re-registered successfully`);
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.error(`[HLS] Failed to re-register stream:`, error);
+            return false;
+        }
+    };
+
+    // 自动重试函数
+    const scheduleRetry = async () => {
+        if (!isOnline) return;
+
+        const currentRetry = retryCountRef.current;
+        if (currentRetry >= maxRetries) return; // 超过最大重试次数
+
+        // 每5次重试，尝试重新注册流
+        if (currentRetry > 0 && currentRetry % reRegisterInterval === 0 && streamId && rtspUrl) {
+            console.log(`[HLS] Retry #${currentRetry}, attempting to re-register stream...`);
+            await reRegisterStream();
+            // 重新注册后等待更长时间让 FFmpeg 启动
+            retryTimerRef.current = setTimeout(() => {
+                setRetryCount(prev => prev + 1);
+            }, 3000);
+        } else {
+            // 前10次每3秒，之后每5秒
+            const interval = currentRetry < 10 ? 3000 : 5000;
+            retryTimerRef.current = setTimeout(() => {
+                setRetryCount(prev => prev + 1);
+            }, interval);
+        }
+    };
 
     useImperativeHandle(ref, () => ({
         getVideoElement: () => videoRef.current,
     }));
 
     useEffect(() => {
+        // 清理重试定时器
+        if (retryTimerRef.current) {
+            clearTimeout(retryTimerRef.current);
+            retryTimerRef.current = null;
+        }
+
         if (!isOnline || !url) {
             setStatus('error');
             return;
@@ -39,13 +111,21 @@ export const HlsPlayer = forwardRef<HlsPlayerRef, HlsPlayerProps>(({ url, isOnli
             hlsRef.current = null;
         }
 
+        setStatus('loading');
+
         // 延迟加载，等待 HLS 文件生成
         const loadHls = () => {
             // 检查原生 HLS 支持（Safari）
             if (video.canPlayType('application/vnd.apple.mpegurl')) {
                 video.src = url;
-                video.addEventListener('loadedmetadata', () => setStatus('connected'));
-                video.addEventListener('error', () => setStatus('error'));
+                video.addEventListener('loadedmetadata', () => {
+                    setStatus('connected');
+                    setRetryCount(0); // 连接成功，重置重试计数
+                });
+                video.addEventListener('error', () => {
+                    setStatus('error');
+                    scheduleRetry(); // 自动重试
+                });
                 video.play().catch(() => { });
                 return;
             }
@@ -68,20 +148,15 @@ export const HlsPlayer = forwardRef<HlsPlayerRef, HlsPlayerProps>(({ url, isOnli
 
                 hls.on(Hls.Events.MANIFEST_PARSED, () => {
                     setStatus('connected');
+                    setRetryCount(0); // 连接成功，重置重试计数
                     video.play().catch(() => { });
                 });
 
                 hls.on(Hls.Events.ERROR, (_, data) => {
                     if (data.fatal) {
                         console.error('HLS fatal error:', data);
-                        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-                            // 网络错误，3秒后自动重试
-                            setTimeout(() => {
-                                hls.startLoad();
-                            }, 3000);
-                        } else {
-                            setStatus('error');
-                        }
+                        setStatus('error');
+                        scheduleRetry(); // 自动重试
                     }
                 });
 
@@ -96,6 +171,10 @@ export const HlsPlayer = forwardRef<HlsPlayerRef, HlsPlayerProps>(({ url, isOnli
 
         return () => {
             clearTimeout(timer);
+            if (retryTimerRef.current) {
+                clearTimeout(retryTimerRef.current);
+                retryTimerRef.current = null;
+            }
             if (hlsRef.current) {
                 hlsRef.current.destroy();
                 hlsRef.current = null;
@@ -137,7 +216,9 @@ export const HlsPlayer = forwardRef<HlsPlayerRef, HlsPlayerProps>(({ url, isOnli
             {status === 'loading' && isOnline && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-secondary/80">
                     <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin mb-3" />
-                    <span className="text-primary text-sm font-mono">连接中...</span>
+                    <span className="text-primary text-sm font-mono">
+                        {retryCount > 0 ? `重试中 (${retryCount}/${maxRetries})` : '连接中...'}
+                    </span>
                     <span className="text-muted-foreground text-xs font-mono mt-1">HLS Stream</span>
                 </div>
             )}
@@ -145,19 +226,34 @@ export const HlsPlayer = forwardRef<HlsPlayerRef, HlsPlayerProps>(({ url, isOnli
             {/* Error / Offline State */}
             {(status === 'error' || !isOnline) && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-secondary/80 z-30">
-                    <VideoOff className="w-10 h-10 text-muted-foreground/60 mb-3" />
-                    <span className="text-muted-foreground text-sm font-mono mb-3">
-                        {!isOnline ? '设备离线' : '无法连接视频流'}
-                    </span>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={handleRetry}
-                        className="gap-2 text-xs"
-                    >
-                        <RefreshCw className="w-3 h-3" />
-                        重试连接
-                    </Button>
+                    {!isOnline ? (
+                        <>
+                            <WifiOff className="w-10 h-10 text-destructive/60 mb-3" />
+                            <span className="text-destructive/80 text-sm font-mono">设备离线</span>
+                        </>
+                    ) : retryCount < maxRetries ? (
+                        <>
+                            <div className="w-10 h-10 border-2 border-orange-500 border-t-transparent rounded-full animate-spin mb-3" />
+                            <span className="text-orange-500 text-sm font-mono">等待流就绪...</span>
+                            <span className="text-muted-foreground text-xs font-mono mt-1">
+                                自动重试 ({retryCount}/{maxRetries})
+                            </span>
+                        </>
+                    ) : (
+                        <>
+                            <VideoOff className="w-10 h-10 text-muted-foreground/60 mb-3" />
+                            <span className="text-muted-foreground text-sm font-mono mb-3">连接失败</span>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleRetry}
+                                className="gap-2 text-xs"
+                            >
+                                <RefreshCw className="w-3 h-3" />
+                                重试连接
+                            </Button>
+                        </>
+                    )}
                 </div>
             )}
 

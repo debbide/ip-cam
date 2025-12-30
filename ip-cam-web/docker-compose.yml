@@ -13,6 +13,8 @@ services:
       - "8289:8289/udp" # WebRTC ICE/UDP
     environment:
       - TZ=Asia/Shanghai
+      # 如果 WebRTC 连接失败，取消注释并设置外部 IP
+      # - WEBRTC_EXTERNAL_IP=你的外部IP
     volumes:
       - ipcam-data:/app/data
       - ipcam-ssl:/etc/nginx/ssl
