@@ -1,0 +1,36 @@
+# IP Cam Streamer - Web Edition
+# 使用预构建镜像部署
+#
+# 使用方法:
+#   docker-compose up -d
+#
+# 访问:
+#   https://你的服务器IP
+#
+
+services:
+  ip-cam-web:
+    image: ghcr.io/debbide/ip-cam-web:latest
+    container_name: ip-cam-web
+    restart: unless-stopped
+    ports:
+      - "80:80"         # HTTP (自动跳转 HTTPS)
+      - "443:443"       # HTTPS (主入口)
+      - "8554:8554"     # RTSP
+      - "8289:8289/udp" # WebRTC ICE
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      - ipcam-data:/app/data          # 摄像头配置、录像
+      - ipcam-ssl:/etc/nginx/ssl      # SSL 证书
+    healthcheck:
+      test: ["CMD", "curl", "-fk", "https://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  ipcam-data:
+    name: ipcam-web-data
+  ipcam-ssl:
+    name: ipcam-web-ssl
