@@ -186,7 +186,7 @@ const Index = () => {
 
     if (editingCamera) {
       const streamId = editingCamera.id.replace('cam-', '');
-      const hlsUrl = `/hls/${streamId}/stream.m3u8`;
+      const hlsUrl = `/hls/${streamId}/index.m3u8`;
 
       // 如果是 HLS/FLV/WebRTC 流类型，自动添加 RTSP 流
       if (['hls', 'flv', 'webrtc'].includes(data.streamType) && rtspUrl) {
@@ -236,7 +236,7 @@ const Index = () => {
     } else {
       const camId = `cam-${Date.now()}`;
       const streamId = camId.replace('cam-', '');
-      const hlsUrl = `/hls/${streamId}/stream.m3u8`;
+      const hlsUrl = `/hls/${streamId}/index.m3u8`;
 
       // 如果是 HLS/FLV/WebRTC 流类型，自动添加 RTSP 流
       if (['hls', 'flv', 'webrtc'].includes(data.streamType) && rtspUrl) {
