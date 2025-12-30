@@ -34,11 +34,9 @@ export const FlvPlayer = forwardRef<FlvPlayerRef, FlvPlayerProps>(({ url, isOnli
         if (!url) return;
 
         // Construct FLV API URL
-        // Assuming the backend is on the same host but port 3001 (or proxied)
-        // In dev, we use localhost:3001. In prod, we might need a relative path if proxied.
-        // For now, let's assume direct access to API port or proxy.
-        // Since we are in docker, the browser accesses localhost:3001 directly for now.
-        const flvUrl = `http://${window.location.hostname}:3001/api/stream/flv?url=${encodeURIComponent(url)}`;
+        // Use relative path for same-origin deployment (Docker/Nginx proxy)
+        // The /api prefix will be proxied to the backend by Nginx
+        const flvUrl = `/api/stream/flv?url=${encodeURIComponent(url)}`;
 
         const initPlayer = () => {
             if (mpegts.getFeatureList().mseLivePlayback) {
