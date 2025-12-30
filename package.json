@@ -3,14 +3,14 @@
   "private": true,
   "version": "1.0.20",
   "type": "module",
-  "main": "electron/main.js",
+  "main": "index.js",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "start:electron": "npm run build && electron electron/main.js",
+    "start:electron": "npm run build && electron .",
     "build:win": "npm run build && electron-builder --win --x64",
     "build:portable": "npm run build && electron-builder --win portable --publish never"
   },
@@ -24,8 +24,15 @@
       "dist/**/*",
       "electron/**/*",
       "rtsp-server/**/*",
+      "index.js",
       "package.json"
     ],
+    "asar": true,
+    "asarUnpack": [
+      "rtsp-server/**/*"
+    ],
+    "electronVersion": null,
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
     "extraResources": [
       {
         "from": "bin/mediamtx.exe",
