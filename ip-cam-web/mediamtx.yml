@@ -44,10 +44,14 @@ webrtcIPsFromInterfaces: yes
 webrtcIPsFromInterfacesList: []
 webrtcAllowOrigin: '*'
 
-# 如果使用公网/外部 IP，取消注释并设置外部 IP
-# Docker 环境下，ICE 候选地址会使用容器内部 IP，需要手动指定外部 IP
-# webrtcAdditionalHosts:
-#   - 你的外部IP或域名
+# STUN 服务器 - 帮助 NAT 穿透
+webrtcICEServers2:
+  - url: stun:stun.l.google.com:19302
+
+# Docker 环境下需要指定宿主机 IP，让浏览器能连接
+# 如果服务器有公网 IP，也添加公网 IP
+webrtcAdditionalHosts:
+  - 10.0.0.6
 
 ###############################################
 # 认证设置

@@ -31,20 +31,14 @@ export const HlsPlayer = forwardRef<HlsPlayerRef, HlsPlayerProps>(({ url, isOnli
         retryCountRef.current = retryCount;
     }, [retryCount]);
 
-    // 重新注册流到后端
+    // 重新注册流到后端（不删除已存在的流）
     const reRegisterStream = async () => {
         if (!streamId || !rtspUrl) return false;
 
         try {
-            console.log(`[HLS] Re-registering stream: ${streamId}`);
+            console.log(`[HLS] Checking/registering stream: ${streamId}`);
 
-            // 先删除旧流
-            await fetch(`/api/streams/${streamId}`, { method: 'DELETE' }).catch(() => {});
-
-            // 等待一小段时间
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            // 重新添加流
+            // 直接尝试添加流（如果已存在会返回错误，没关系）
             const response = await fetch('/api/streams', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -52,12 +46,15 @@ export const HlsPlayer = forwardRef<HlsPlayerRef, HlsPlayerProps>(({ url, isOnli
             });
 
             if (response.ok) {
-                console.log(`[HLS] Stream ${streamId} re-registered successfully`);
+                console.log(`[HLS] Stream ${streamId} registered successfully`);
+                return true;
+            } else {
+                // 流可能已存在，这是正常的
+                console.log(`[HLS] Stream ${streamId} may already exist`);
                 return true;
             }
-            return false;
         } catch (error) {
-            console.error(`[HLS] Failed to re-register stream:`, error);
+            console.error(`[HLS] Failed to register stream:`, error);
             return false;
         }
     };
