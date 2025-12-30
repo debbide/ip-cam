@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, forwardRef, useImperativeHandle } from 'react';
+import { nativeFetch } from '@/utils/nativeHttp';
 import { VideoOff, RefreshCw, WifiOff, Volume2, VolumeX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -54,13 +55,13 @@ export const WebrtcPlayer = forwardRef<WebrtcPlayerRef, WebrtcPlayerProps>(({ ur
             console.log(`[WebRTC] Re-registering stream: ${streamId}`);
 
             // 先删除旧流
-            await fetch(`/api/streams/${streamId}`, { method: 'DELETE' }).catch(() => {});
+            await nativeFetch(`/api/streams/${streamId}`, { method: 'DELETE' }).catch(() => { });
 
             // 等待一小段时间
             await new Promise(resolve => setTimeout(resolve, 500));
 
             // 重新添加流
-            const response = await fetch('/api/streams', {
+            const response = await nativeFetch('/api/streams', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ id: streamId, rtspUrl }),

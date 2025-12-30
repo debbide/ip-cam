@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { nativeFetch } from '@/utils/nativeHttp';
 import { useServer } from './ServerContext';
 
 export interface User {
@@ -82,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const response = await fetch(getApiUrl('/api/auth/login'), {
+      const response = await nativeFetch(getApiUrl('/api/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })

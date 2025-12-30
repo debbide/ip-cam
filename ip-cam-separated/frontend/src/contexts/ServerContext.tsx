@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { nativeFetch } from '@/utils/nativeHttp';
 
 // 简化的服务器配置接口（用户只需填写这些）
 export interface ServerConfig {
@@ -147,7 +148,7 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
 
     try {
       // 1. 获取服务器信息
-      const infoResponse = await fetch(getApiUrl('/api/server-info'), {
+      const infoResponse = await nativeFetch(getApiUrl('/api/server-info'), {
         method: 'GET',
         signal: AbortSignal.timeout(5000),
       });
@@ -170,7 +171,7 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
 
         // 如果有新密码，进行登录
         if (password) {
-          const loginResponse = await fetch(getApiUrl('/api/login'), {
+          const loginResponse = await nativeFetch(getApiUrl('/api/login'), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ password }),
@@ -189,7 +190,7 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
         }
         // 如果没有新密码但有旧 token，验证 token 是否有效
         else if (token) {
-          const testResponse = await fetch(getApiUrl('/api/streams'), {
+          const testResponse = await nativeFetch(getApiUrl('/api/streams'), {
             method: 'GET',
             headers: { 'Authorization': `Bearer ${token}` },
             signal: AbortSignal.timeout(5000),
@@ -257,7 +258,7 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
       if (!isConnected || isConnecting) return;
 
       try {
-        const response = await fetch(getApiUrl('/api/server-info'), {
+        const response = await nativeFetch(getApiUrl('/api/server-info'), {
           method: 'GET',
           signal: AbortSignal.timeout(5000),
         });

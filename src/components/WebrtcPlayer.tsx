@@ -30,9 +30,9 @@ export const WebrtcPlayer = forwardRef<WebrtcPlayerRef, WebrtcPlayerProps>(({ ur
     const [retryCount, setRetryCount] = useState(0);
     const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
     const retryCountRef = useRef(0); // 用于闭包中获取最新值
-    const maxRetries = 30; // 最多重试30次，每次2秒，共60秒
-    const retryInterval = 2000; // 2秒重试一次
-    const reRegisterIntervalRef = useRef(5); // 每5次重试，尝试重新注册流
+    const maxRetries = 30; // 最多重试30次
+    const retryInterval = 3000; // 3秒重试一次（给 FFmpeg 更多启动时间）
+    const reRegisterIntervalRef = useRef(10); // 每10次重试，尝试重新注册流
     const [debugInfo, setDebugInfo] = useState({
         iceConnection: 'new',
         iceGathering: 'new',
@@ -45,20 +45,14 @@ export const WebrtcPlayer = forwardRef<WebrtcPlayerRef, WebrtcPlayerProps>(({ ur
         retryCountRef.current = retryCount;
     }, [retryCount]);
 
-    // 重新注册流到后端
+    // 重新注册流到后端（不删除已存在的流）
     const reRegisterStream = async () => {
         if (!streamId || !rtspUrl) return false;
 
         try {
-            console.log(`[WebRTC] Re-registering stream: ${streamId}`);
+            console.log(`[WebRTC] Checking/registering stream: ${streamId}`);
 
-            // 先删除旧流
-            await fetch(`/api/streams/${streamId}`, { method: 'DELETE' }).catch(() => {});
-
-            // 等待一小段时间
-            await new Promise(resolve => setTimeout(resolve, 500));
-
-            // 重新添加流
+            // 直接尝试添加流（如果已存在会返回错误，没关系）
             const response = await fetch('/api/streams', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -66,12 +60,15 @@ export const WebrtcPlayer = forwardRef<WebrtcPlayerRef, WebrtcPlayerProps>(({ ur
             });
 
             if (response.ok) {
-                console.log(`[WebRTC] Stream ${streamId} re-registered successfully`);
+                console.log(`[WebRTC] Stream ${streamId} registered successfully`);
+                return true;
+            } else {
+                // 流可能已存在，这是正常的
+                console.log(`[WebRTC] Stream ${streamId} may already exist`);
                 return true;
             }
-            return false;
         } catch (error) {
-            console.error(`[WebRTC] Failed to re-register stream:`, error);
+            console.error(`[WebRTC] Failed to register stream:`, error);
             return false;
         }
     };

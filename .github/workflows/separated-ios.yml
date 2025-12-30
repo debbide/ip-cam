@@ -52,13 +52,27 @@ jobs:
         working-directory: ip-cam-separated/frontend/ios/App/App
         run: |
           # 添加 App Transport Security 例外，允许 HTTP 连接
-          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity dict" Info.plist 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSAllowsArbitraryLoads bool true" Info.plist 2>/dev/null || true
-          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSAllowsLocalNetworking bool true" Info.plist 2>/dev/null || true
+          # 先删除已存在的配置，再重新添加
+          /usr/libexec/PlistBuddy -c "Delete :NSAppTransportSecurity" Info.plist 2>/dev/null || true
+          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity dict" Info.plist
+          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSAllowsArbitraryLoads bool true" Info.plist
+          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSAllowsLocalNetworking bool true" Info.plist
+
+          # 添加例外域配置，允许所有本地 IP 段
+          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSExceptionDomains dict" Info.plist
+
+          # 允许 localhost
+          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSExceptionDomains:localhost dict" Info.plist
+          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSExceptionDomains:localhost:NSExceptionAllowsInsecureHTTPLoads bool true" Info.plist
+          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSExceptionDomains:localhost:NSIncludesSubdomains bool true" Info.plist
 
           # 显示结果
           echo "Info.plist ATS configuration:"
           /usr/libexec/PlistBuddy -c "Print :NSAppTransportSecurity" Info.plist || echo "ATS not configured"
+
+          # 显示完整 Info.plist 供调试
+          echo "--- Full Info.plist ---"
+          cat Info.plist
 
       - name: Update iOS project settings
         working-directory: ip-cam-separated/frontend/ios/App

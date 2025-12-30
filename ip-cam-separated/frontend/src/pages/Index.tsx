@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { nativeFetch } from '@/utils/nativeHttp';
 import { Header } from '@/components/Header';
 import { DeviceSidebar } from '@/components/DeviceSidebar';
 import { CameraCard } from '@/components/CameraCard';
@@ -37,7 +38,7 @@ const Index = () => {
     const fetchSettings = async () => {
       if (!isConnected) return;
       try {
-        const res = await fetch(getApiUrl('/api/settings'), {
+        const res = await nativeFetch(getApiUrl('/api/settings'), {
           headers: getAuthHeaders(),
         });
         if (res.ok) {

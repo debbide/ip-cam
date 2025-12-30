@@ -7,6 +7,7 @@
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Preferences } from '@capacitor/preferences';
 import { Share } from '@capacitor/share';
+import { nativeFetch } from './nativeHttp';
 
 // ===== 环境检测 =====
 
@@ -496,7 +497,7 @@ export async function sendNotification(
                         return { success: false, error: `HTTP ${response.status}: ${responseText.substring(0, 200)}` };
                     }
                 } else {
-                    const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                    const response = await nativeFetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ chat_id: chatId, text: message })
@@ -514,7 +515,7 @@ export async function sendNotification(
                     return { success: false, error: '企业微信 Webhook URL 未配置' };
                 }
 
-                const response = await fetch(webhookUrl, {
+                const response = await nativeFetch(webhookUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ msgtype: 'text', text: { content: message } })
@@ -532,7 +533,7 @@ export async function sendNotification(
                     return { success: false, error: 'Webhook URL 未配置' };
                 }
 
-                const response = await fetch(webhookUrl, {
+                const response = await nativeFetch(webhookUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({

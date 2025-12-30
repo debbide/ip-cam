@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { nativeFetch } from '@/utils/nativeHttp';
 import { useServer } from '@/contexts/ServerContext';
 
 interface SystemStatsData {
@@ -31,7 +32,7 @@ export function useSystemStats(refreshInterval = 5000) {
             }
 
             try {
-                const response = await fetch(getApiUrl('/api/system-stats'));
+                const response = await nativeFetch(getApiUrl('/api/system-stats'));
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}`);
                 }

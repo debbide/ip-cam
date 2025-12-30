@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { nativeFetch } from '@/utils/nativeHttp';
 import { Button } from '@/components/ui/button';
-import { 
-  ChevronUp, 
-  ChevronDown, 
-  ChevronLeft, 
+import {
+  ChevronUp,
+  ChevronDown,
+  ChevronLeft,
   ChevronRight,
   ZoomIn,
   ZoomOut,
@@ -34,11 +35,11 @@ export function PTZControl({ baseUrl, isOnline, compact = false }: PTZControlPro
     setIsMoving(true);
     try {
       // IP Webcam uses these endpoints for PTZ control
-      const response = await fetch(`${baseUrl}/ptz?${command}`, {
+      const response = await nativeFetch(`${baseUrl}/ptz?${command}`, {
         method: 'GET',
         mode: 'no-cors', // IP Webcam doesn't support CORS
       });
-      
+
       // Since we're using no-cors, we can't read the response
       // Just assume success if no error thrown
     } catch (error) {
@@ -53,7 +54,7 @@ export function PTZControl({ baseUrl, isOnline, compact = false }: PTZControlPro
     // IP Webcam PTZ direction commands
     const directionMap: Record<PTZDirection, string> = {
       up: 'move=up',
-      down: 'move=down', 
+      down: 'move=down',
       left: 'move=left',
       right: 'move=right',
       up_left: 'move=up_left',
